@@ -94,27 +94,27 @@ export default function BillsPage() {
   return (
     <div className="min-h-screen bg-cream">
       <Navbar />
-      <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-foreground">Bills</h1>
-          <p className="mt-1 text-muted-foreground">
+      <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8 space-y-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Bills</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Track your recurring expenses and due dates.
           </p>
         </div>
 
         {error && (
-          <div className="mb-4 rounded-xl bg-blush-50 px-4 py-3 text-sm text-blush-700 ring-1 ring-blush-200">
+          <div className="rounded-xl bg-blush-50 px-4 py-3 text-sm text-blush-700 ring-1 ring-blush-200">
             {error}
           </div>
         )}
 
         {/* Summary */}
-        <Card className="mb-6 border-blush-200 bg-gradient-to-r from-blush-50 to-white">
+        <Card className="border-blush-200 bg-gradient-to-r from-blush-50 to-white">
           <CardContent className="flex items-center justify-between pt-5">
             <div>
-              <p className="text-sm text-muted-foreground">Total monthly bills</p>
-              <p className="text-3xl font-bold text-blush-800">
-                ${totalMonthly.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Total monthly</p>
+              <p className="text-3xl font-bold tabular text-blush-800 mt-1">
+                ${totalMonthly.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
               </p>
             </div>
             <div className="text-right">
@@ -130,9 +130,9 @@ export default function BillsPage() {
         </Card>
 
         {/* Add form */}
-        <Card className="mb-6">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-base text-blush-700">Add a Bill</CardTitle>
+            <CardTitle className="text-sm font-semibold text-blush-700">Add a bill</CardTitle>
           </CardHeader>
           <CardContent>
             <ManualBillForm onSuccess={fetchBills} />
@@ -142,7 +142,7 @@ export default function BillsPage() {
         {/* Bills list */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Your Bills</CardTitle>
+            <CardTitle className="text-sm font-semibold">Your bills</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (

@@ -1,4 +1,3 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp } from "lucide-react";
 
 interface IncomeCardProps {
@@ -8,23 +7,21 @@ interface IncomeCardProps {
 
 export function IncomeCard({ amount, count }: IncomeCardProps) {
   return (
-    <Card className="border-sage-200 bg-gradient-to-br from-sage-50 to-white">
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium text-sage-700">
-          Monthly Income
-        </CardTitle>
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-sage-100 text-sage-600">
-          <TrendingUp className="h-5 w-5" />
+    <div className="rounded-2xl bg-gradient-to-br from-sage-50 via-white to-sage-50/50 p-4 ring-1 ring-sage-200 shadow-sm">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs font-semibold uppercase tracking-wide text-sage-600">
+          Income
         </span>
-      </CardHeader>
-      <CardContent>
-        <div className="text-3xl font-bold text-sage-800">
-          ${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {count} income {count === 1 ? "source" : "sources"}
-        </p>
-      </CardContent>
-    </Card>
+        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-sage-100">
+          <TrendingUp className="h-4 w-4 text-sage-600" />
+        </span>
+      </div>
+      <p className="text-2xl font-bold tabular text-sage-900 leading-none">
+        ${amount.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+      </p>
+      <p className="mt-1.5 text-xs text-muted-foreground">
+        {count} source{count === 1 ? "" : "s"} · monthly
+      </p>
+    </div>
   );
 }

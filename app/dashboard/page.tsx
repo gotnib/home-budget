@@ -8,14 +8,13 @@ import { BudgetSummary } from "@/components/dashboard/BudgetSummary";
 import { IncomeCard } from "@/components/dashboard/IncomeCard";
 import { BillCard } from "@/components/dashboard/BillCard";
 import { GroceryBudgetCard } from "@/components/dashboard/GroceryBudgetCard";
-import { Button } from "@/components/ui/button";
-import { Building2 } from "lucide-react";
+import { Building2, ChevronRight } from "lucide-react";
 
-function getGreeting(name: string | null | undefined) {
+function getGreeting() {
   const hour = new Date().getHours();
-  const part = hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening";
-  const displayName = name ?? "there";
-  return `Good ${part}, ${displayName}!`;
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
 }
 
 export default async function DashboardPage() {
@@ -66,47 +65,76 @@ export default async function DashboardPage() {
     dueDay: b.dueDay,
   }));
 
+  const plannedCount = groceryItems.filter((g) => g.status === "planned").length;
+
+  const quickLinks = [
+    {
+      href: "/groceries",
+      emoji: "🛒",
+      bg: "bg-lavender-100",
+      label: "Build Grocery List",
+      sub: `${plannedCount} item${plannedCount === 1 ? "" : "s"} planned`,
+    },
+    {
+      href: "/bills",
+      emoji: "📋",
+      bg: "bg-blush-100",
+      label: "Manage Bills",
+      sub: `${bills.length} recurring bill${bills.length === 1 ? "" : "s"}`,
+    },
+    {
+      href: "/budget",
+      emoji: "💰",
+      bg: "bg-sage-100",
+      label: "Adjust Budget",
+      sub: `Grocery at ${groceryPercent}% of flexible`,
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-cream">
       <Navbar userEmail={user.email} />
 
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 space-y-6">
         {/* Greeting */}
-        <div className="mb-8">
+        <div>
           <h1 className="text-2xl font-bold text-foreground sm:text-3xl">
-            {getGreeting(userName)}
+            {getGreeting()}{userName ? `, ${userName}` : ""}! 👋
           </h1>
-          <p className="mt-1 text-muted-foreground">
+          <p className="mt-1 text-sm text-muted-foreground sm:text-base">
             Here&apos;s your cozy budget check.
           </p>
         </div>
 
         {/* Bank connection banner */}
         {plaidItems.length === 0 && (
-          <div className="mb-6 flex items-center justify-between rounded-2xl bg-lavender-50 px-5 py-4 ring-1 ring-lavender-200">
-            <div>
-              <p className="font-medium text-lavender-800">
-                Connect your bank to auto-import transactions
-              </p>
-              <p className="text-sm text-lavender-600">
-                Plaid securely syncs your income and recurring bills.
-              </p>
+          <Link
+            href="/settings"
+            className="flex items-center justify-between rounded-2xl bg-gradient-to-r from-lavender-50 to-lavender-100 px-5 py-4 ring-1 ring-lavender-200 hover:ring-lavender-300 transition-all group"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-lavender-200 text-lavender-700 flex-shrink-0">
+                <Building2 className="h-5 w-5" />
+              </span>
+              <div>
+                <p className="font-medium text-lavender-900 text-sm sm:text-base">
+                  Connect your bank to auto-import
+                </p>
+                <p className="text-xs text-lavender-600 sm:text-sm">
+                  Plaid securely syncs income and recurring bills
+                </p>
+              </div>
             </div>
-            <Link href="/settings">
-              <Button variant="lavender" className="gap-2 whitespace-nowrap">
-                <Building2 className="h-4 w-4" />
-                Connect Bank
-              </Button>
-            </Link>
-          </div>
+            <ChevronRight className="h-5 w-5 text-lavender-400 group-hover:text-lavender-600 transition-colors flex-shrink-0" />
+          </Link>
         )}
 
-        {/* Cards grid */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Stat cards — 2-col on mobile, 4-col on lg */}
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           <IncomeCard amount={monthlyIncome} count={incomes.length} />
           <BillCard total={fixedBills} bills={billsForCard} />
           <GroceryBudgetCard budget={groceryBudget} spent={grocerySpent} />
-          <div className="sm:col-span-2 lg:col-span-1">
+          <div className="col-span-2 lg:col-span-1">
             <BudgetSummary
               monthlyIncome={monthlyIncome}
               fixedBills={fixedBills}
@@ -117,49 +145,35 @@ export default async function DashboardPage() {
         </div>
 
         {/* Quick links */}
-        <div className="mt-8 grid gap-3 sm:grid-cols-3">
-          <Link
-            href="/groceries"
-            className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-cream-200 transition-shadow hover:shadow-md"
-          >
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-lavender-100 text-xl">
-              🛒
-            </span>
-            <div>
-              <p className="font-medium text-foreground">Build Grocery List</p>
-              <p className="text-sm text-muted-foreground">
-                {groceryItems.filter((g) => g.status === "planned").length} items planned
-              </p>
-            </div>
-          </Link>
-          <Link
-            href="/bills"
-            className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-cream-200 transition-shadow hover:shadow-md"
-          >
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blush-100 text-xl">
-              📋
-            </span>
-            <div>
-              <p className="font-medium text-foreground">Manage Bills</p>
-              <p className="text-sm text-muted-foreground">
-                {bills.length} recurring bills
-              </p>
-            </div>
-          </Link>
-          <Link
-            href="/budget"
-            className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-cream-200 transition-shadow hover:shadow-md"
-          >
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-sage-100 text-xl">
-              💰
-            </span>
-            <div>
-              <p className="font-medium text-foreground">Adjust Budget</p>
-              <p className="text-sm text-muted-foreground">
-                Grocery at {groceryPercent}% of flexible
-              </p>
-            </div>
-          </Link>
+        <div>
+          <h2 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            Quick actions
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {quickLinks.map(({ href, emoji, bg, label, sub }) => (
+              <Link
+                key={href}
+                href={href}
+                className="group flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-cream-200 transition-all hover:shadow-md hover:ring-cream-300 active:scale-[0.98]"
+              >
+                <span
+                  className={[
+                    "flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl text-xl transition-transform group-hover:scale-110",
+                    bg,
+                  ].join(" ")}
+                >
+                  {emoji}
+                </span>
+                <div className="min-w-0">
+                  <p className="font-semibold text-foreground text-sm sm:text-base leading-tight">
+                    {label}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{sub}</p>
+                </div>
+                <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors flex-shrink-0" />
+              </Link>
+            ))}
+          </div>
         </div>
       </main>
     </div>

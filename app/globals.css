@@ -5,64 +5,34 @@
 @layer base {
   :root {
     --background: 40 60% 97%;
-    --foreground: 25 20% 20%;
+    --foreground: 25 20% 18%;
 
-    --card: 40 50% 99%;
-    --card-foreground: 25 20% 20%;
+    --card: 0 0% 100%;
+    --card-foreground: 25 20% 18%;
 
-    --popover: 40 50% 99%;
-    --popover-foreground: 25 20% 20%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 25 20% 18%;
 
     --primary: 344 78% 80%;
-    --primary-foreground: 344 50% 20%;
+    --primary-foreground: 344 50% 18%;
 
     --secondary: 130 20% 60%;
-    --secondary-foreground: 130 30% 15%;
+    --secondary-foreground: 130 30% 12%;
 
     --muted: 40 30% 93%;
-    --muted-foreground: 25 15% 50%;
+    --muted-foreground: 25 15% 48%;
 
     --accent: 270 40% 82%;
-    --accent-foreground: 270 30% 20%;
+    --accent-foreground: 270 30% 18%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 40 25% 88%;
-    --input: 40 25% 88%;
+    --border: 40 20% 90%;
+    --input: 40 20% 90%;
     --ring: 344 78% 75%;
 
-    --radius: 0.75rem;
-  }
-
-  .dark {
-    --background: 25 20% 10%;
-    --foreground: 40 30% 95%;
-
-    --card: 25 20% 13%;
-    --card-foreground: 40 30% 95%;
-
-    --popover: 25 20% 13%;
-    --popover-foreground: 40 30% 95%;
-
-    --primary: 344 60% 65%;
-    --primary-foreground: 344 80% 10%;
-
-    --secondary: 130 20% 35%;
-    --secondary-foreground: 130 10% 90%;
-
-    --muted: 25 15% 18%;
-    --muted-foreground: 40 15% 55%;
-
-    --accent: 270 30% 45%;
-    --accent-foreground: 270 20% 95%;
-
-    --destructive: 0 62% 40%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 25 15% 22%;
-    --input: 25 15% 22%;
-    --ring: 344 60% 60%;
+    --radius: 0.875rem;
   }
 }
 
@@ -73,28 +43,101 @@
 
   html {
     scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
   }
 
   body {
-    @apply bg-cream text-foreground font-sans antialiased;
+    @apply bg-cream text-foreground antialiased;
     background-color: #fdf8f0;
+    font-family: var(--font-inter), system-ui, sans-serif;
+    /* Safe area support for notched phones */
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  /* Mobile: reserve space for fixed bottom tab bar */
+  body {
+    padding-bottom: env(safe-area-inset-bottom);
   }
 
   h1, h2, h3, h4, h5, h6 {
     @apply font-semibold tracking-tight;
   }
+
+  input, select, textarea {
+    font-size: 16px; /* prevents iOS zoom on focus */
+  }
 }
 
 @layer utilities {
+  /* Card styles */
   .honeycart-card {
-    @apply bg-white rounded-2xl border border-cream-200 shadow-sm;
+    @apply rounded-2xl border border-cream-200 bg-white shadow-sm;
   }
 
+  /* Soft page gradient */
   .honeycart-gradient {
-    background: linear-gradient(135deg, #fdf8f0 0%, #fde2ea 50%, #eff6f0 100%);
+    background: linear-gradient(160deg, #fdf8f0 0%, #fde8ee 50%, #eff8f0 100%);
+  }
+
+  /* Subtle animated gradient for hero sections */
+  .hero-gradient {
+    background: radial-gradient(ellipse 80% 60% at 50% -10%, #fde2ea 0%, transparent 60%),
+                radial-gradient(ellipse 60% 50% at 0% 100%, #eff6f0 0%, transparent 60%),
+                #fdf8f0;
+  }
+
+  /* Floating blob decoration */
+  .blob {
+    border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
   }
 
   .text-balance {
     text-wrap: balance;
+  }
+
+  /* Number display with tabular figures */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Glass card effect */
+  .glass-card {
+    @apply bg-white/70 backdrop-blur-sm border border-white/80 rounded-2xl shadow-sm;
+  }
+
+  /* Smooth page transitions */
+  .page-enter {
+    @apply animate-fade-in;
+  }
+}
+
+@layer components {
+  /* Stat number – big readable budget figures */
+  .stat-number {
+    @apply text-3xl font-bold tabular tracking-tight;
+  }
+
+  /* Section header on inner pages */
+  .page-header {
+    @apply mb-6 space-y-1;
+  }
+
+  .page-title {
+    @apply text-2xl font-bold sm:text-3xl;
+  }
+
+  .page-subtitle {
+    @apply text-sm text-muted-foreground;
+  }
+
+  /* Chip / pill tag */
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ring-1;
+  }
+
+  /* Bottom tab bar safe area spacer */
+  .bottom-tab-spacer {
+    height: calc(4rem + env(safe-area-inset-bottom));
   }
 }

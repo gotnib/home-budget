@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, ShoppingBag } from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
 import { GrocerySearch } from "@/components/groceries/GrocerySearch";
 import { GroceryList } from "@/components/groceries/GroceryList";
@@ -16,10 +16,6 @@ interface GroceryItem {
   quantity: number;
   estimatedPrice: number | null;
   status: string;
-}
-
-interface BudgetData {
-  groceryBudget: number;
 }
 
 export default function GroceriesPage() {
@@ -41,7 +37,7 @@ export default function GroceriesPage() {
   const fetchBudget = useCallback(async () => {
     try {
       const res = await fetch("/api/budget");
-      const data: BudgetData = await res.json();
+      const data = await res.json();
       if (res.ok) setBudget(data.groceryBudget ?? 0);
     } catch {
       // budget not critical
@@ -49,9 +45,7 @@ export default function GroceriesPage() {
   }, []);
 
   useEffect(() => {
-    Promise.all([fetchItems(), fetchBudget()]).finally(() =>
-      setIsLoading(false)
-    );
+    Promise.all([fetchItems(), fetchBudget()]).finally(() => setIsLoading(false));
   }, [fetchItems, fetchBudget]);
 
   async function handleAddItem(item: {
@@ -59,54 +53,46 @@ export default function GroceriesPage() {
     quantity: number;
     estimatedPrice: number;
   }) {
-    try {
-      const res = await fetch("/api/groceries/cart", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(item),
-      });
-      if (res.ok) await fetchItems();
-    } catch {
-      setError("Failed to add item.");
-    }
+    const res = await fetch("/api/groceries/cart", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(item),
+    });
+    if (res.ok) await fetchItems();
   }
 
-  async function handleUpdate(
-    id: string,
-    data: { status?: string; quantity?: number }
-  ) {
-    try {
-      const res = await fetch("/api/groceries/cart", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, ...data }),
-      });
-      if (res.ok) {
-        const json = await res.json();
-        setItems((prev) =>
-          prev.map((item) => (item.id === id ? { ...item, ...json.item } : item))
-        );
-      }
-    } catch {
-      setError("Failed to update item.");
+  async function handleUpdate(id: string, data: { status?: string; quantity?: number }) {
+    const res = await fetch("/api/groceries/cart", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, ...data }),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      setItems((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, ...json.item } : item))
+      );
     }
   }
 
   async function handleDelete(id: string) {
-    try {
-      const res = await fetch("/api/groceries/cart", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
-      });
-      if (res.ok) setItems((prev) => prev.filter((i) => i.id !== id));
-    } catch {
-      setError("Failed to remove item.");
-    }
+    const res = await fetch("/api/groceries/cart", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    if (res.ok) setItems((prev) => prev.filter((i) => i.id !== id));
   }
 
   const plannedItems = items.filter((i) => i.status === "planned");
   const purchasedItems = items.filter((i) => i.status === "purchased");
+
+  const totalEstimated = items.reduce(
+    (sum, i) => sum + (i.estimatedPrice ?? 0) * i.quantity,
+    0
+  );
+  const remaining = Math.max(0, budget - totalEstimated);
+  const isOver = totalEstimated > budget && budget > 0;
 
   if (isLoading) {
     return (
@@ -122,15 +108,21 @@ export default function GroceriesPage() {
   return (
     <div className="min-h-screen bg-cream">
       <Navbar />
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-8 flex items-start justify-between gap-4">
+
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+        {/* Header */}
+        <div className="mb-6 flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Grocery List</h1>
-            <p className="mt-1 text-muted-foreground">
-              Build your list, track your budget, and export to Walmart.
+            <h1 className="text-2xl font-bold text-foreground sm:text-3xl">
+              Grocery List
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Build your list, track your budget, export to Walmart.
             </p>
           </div>
-          <WalmartExportButton />
+          <div className="hidden sm:block">
+            <WalmartExportButton />
+          </div>
         </div>
 
         {error && (
@@ -139,26 +131,26 @@ export default function GroceriesPage() {
           </div>
         )}
 
-        <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
+        <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
           {/* Main column */}
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Search */}
             <Card>
-              <CardHeader>
-                <CardTitle className="text-base text-foreground">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold text-foreground">
                   Search items
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent>
                 <GrocerySearch onAddItem={handleAddItem} />
               </CardContent>
             </Card>
 
             {/* Manual add */}
             <Card>
-              <CardHeader>
-                <CardTitle className="text-base text-foreground">
-                  Add item manually
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold text-foreground">
+                  Add manually
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -167,11 +159,11 @@ export default function GroceriesPage() {
             </Card>
 
             {/* Planned list */}
-            {plannedItems.length > 0 && (
+            {plannedItems.length > 0 ? (
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between text-base">
-                    <span>To buy ({plannedItems.length})</span>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center justify-between text-sm font-semibold">
+                    <span>To buy · {plannedItems.length}</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -182,23 +174,22 @@ export default function GroceriesPage() {
                   />
                 </CardContent>
               </Card>
+            ) : (
+              <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-cream-300 bg-white/50 py-12 text-center">
+                <span className="text-4xl mb-3">🛒</span>
+                <p className="font-medium text-foreground">Your list is empty</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Search above or add items manually.
+                </p>
+              </div>
             )}
 
-            {/* Empty state */}
-            {plannedItems.length === 0 && (
-              <GroceryList
-                items={[]}
-                onUpdate={handleUpdate}
-                onDelete={handleDelete}
-              />
-            )}
-
-            {/* Purchased items */}
+            {/* Purchased */}
             {purchasedItems.length > 0 && (
-              <Card className="opacity-80">
-                <CardHeader>
-                  <CardTitle className="text-base text-muted-foreground">
-                    In cart ({purchasedItems.length})
+              <Card className="opacity-75">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-semibold text-muted-foreground">
+                    In cart · {purchasedItems.length}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -210,14 +201,43 @@ export default function GroceriesPage() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Mobile export button */}
+            <div className="sm:hidden">
+              <WalmartExportButton />
+            </div>
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-4">
+          {/* Sidebar – hidden on mobile (see floating pill below) */}
+          <div className="hidden lg:block space-y-4">
             <GroceryCart items={items} budget={budget} />
           </div>
         </div>
       </main>
+
+      {/* Mobile floating cart summary pill */}
+      {items.length > 0 && (
+        <div className="fixed bottom-[calc(56px+env(safe-area-inset-bottom)+8px)] left-1/2 -translate-x-1/2 z-40 lg:hidden">
+          <div
+            className={[
+              "flex items-center gap-3 rounded-full px-5 py-3 shadow-lg ring-1 text-sm font-medium backdrop-blur-sm",
+              isOver
+                ? "bg-blush-500/90 text-white ring-blush-400"
+                : "bg-white/90 text-foreground ring-cream-200",
+            ].join(" ")}
+          >
+            <ShoppingBag className="h-4 w-4 flex-shrink-0" />
+            <span>
+              {items.reduce((s, i) => s + i.quantity, 0)} items ·{" "}
+              <span className={isOver ? "font-bold" : "font-bold text-sage-700"}>
+                {isOver
+                  ? `-$${(totalEstimated - budget).toFixed(0)} over`
+                  : `$${remaining.toFixed(0)} left`}
+              </span>
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

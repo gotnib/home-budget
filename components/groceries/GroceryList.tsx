@@ -1,7 +1,6 @@
 "use client";
 
 import { Minus, Plus, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface GroceryItem {
@@ -19,45 +18,49 @@ interface GroceryListProps {
 }
 
 export function GroceryList({ items, onUpdate, onDelete }: GroceryListProps) {
-  if (items.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-cream-300 py-16 text-center">
-        <span className="text-4xl">🛒</span>
-        <p className="mt-3 font-medium text-muted-foreground">Your cart is empty</p>
-        <p className="text-sm text-muted-foreground/70">Search for items above to get started</p>
-      </div>
-    );
-  }
-
   return (
     <ul className="space-y-2">
       {items.map((item) => {
         const checked = item.status === "purchased";
+        const lineTotal =
+          item.estimatedPrice != null
+            ? (item.estimatedPrice * item.quantity).toFixed(2)
+            : null;
+
         return (
           <li
             key={item.id}
             className={cn(
-              "flex items-center gap-3 rounded-xl border px-4 py-3 transition-colors",
+              "flex items-center gap-3 rounded-xl border px-3 py-3 transition-all duration-150 sm:px-4",
               checked
-                ? "border-sage-200 bg-sage-50 opacity-70"
-                : "border-cream-200 bg-white"
+                ? "border-sage-200 bg-sage-50/80 opacity-70"
+                : "border-cream-200 bg-white hover:border-cream-300"
             )}
           >
-            {/* Checkbox */}
+            {/* Checkbox — large tap target */}
             <button
               type="button"
-              onClick={() => onUpdate(item.id, { status: checked ? "planned" : "purchased" })}
+              onClick={() =>
+                onUpdate(item.id, { status: checked ? "planned" : "purchased" })
+              }
               className={cn(
-                "flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+                "flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border-2 transition-all duration-150 touch-manipulation",
                 checked
                   ? "border-sage-400 bg-sage-400 text-white"
-                  : "border-cream-300 hover:border-sage-300"
+                  : "border-cream-300 hover:border-sage-300 hover:bg-sage-50"
               )}
               aria-label={checked ? "Mark as not purchased" : "Mark as purchased"}
+              style={{ minWidth: 24, minHeight: 24 }}
             >
               {checked && (
-                <svg className="h-3 w-3" viewBox="0 0 12 12" fill="none">
-                  <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <svg className="h-3.5 w-3.5" viewBox="0 0 12 12" fill="none">
+                  <path
+                    d="M2 6l3 3 5-5"
+                    stroke="currentColor"
+                    strokeWidth="1.75"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
               )}
             </button>
@@ -65,7 +68,7 @@ export function GroceryList({ items, onUpdate, onDelete }: GroceryListProps) {
             {/* Name */}
             <span
               className={cn(
-                "flex-1 text-sm font-medium",
+                "flex-1 min-w-0 text-sm font-medium leading-snug",
                 checked && "line-through text-muted-foreground"
               )}
             >
@@ -73,47 +76,47 @@ export function GroceryList({ items, onUpdate, onDelete }: GroceryListProps) {
             </span>
 
             {/* Quantity stepper */}
-            <div className="flex items-center gap-1">
-              <Button
+            <div className="flex items-center gap-0.5">
+              <button
                 type="button"
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 rounded-full hover:bg-cream-100"
-                onClick={() => onUpdate(item.id, { quantity: Math.max(1, item.quantity - 1) })}
+                onClick={() =>
+                  onUpdate(item.id, { quantity: Math.max(1, item.quantity - 1) })
+                }
                 disabled={item.quantity <= 1}
+                aria-label="Decrease quantity"
+                className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-cream-100 disabled:opacity-30 transition-colors touch-manipulation"
               >
                 <Minus className="h-3 w-3" />
-              </Button>
-              <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
-              <Button
+              </button>
+              <span className="w-5 text-center text-sm font-semibold tabular">
+                {item.quantity}
+              </span>
+              <button
                 type="button"
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 rounded-full hover:bg-cream-100"
-                onClick={() => onUpdate(item.id, { quantity: item.quantity + 1 })}
+                onClick={() =>
+                  onUpdate(item.id, { quantity: item.quantity + 1 })
+                }
+                aria-label="Increase quantity"
+                className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-cream-100 transition-colors touch-manipulation"
               >
                 <Plus className="h-3 w-3" />
-              </Button>
+              </button>
             </div>
 
             {/* Price */}
-            {item.estimatedPrice != null && (
-              <span className="w-16 text-right text-sm text-muted-foreground">
-                ${(item.estimatedPrice * item.quantity).toFixed(2)}
-              </span>
-            )}
+            <span className="w-14 text-right text-xs text-muted-foreground tabular hidden sm:block">
+              {lineTotal ? `$${lineTotal}` : "—"}
+            </span>
 
             {/* Delete */}
-            <Button
+            <button
               type="button"
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 flex-shrink-0 text-muted-foreground hover:bg-blush-50 hover:text-blush-600"
               onClick={() => onDelete(item.id)}
               aria-label="Remove item"
+              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-muted-foreground/50 hover:bg-blush-50 hover:text-blush-500 transition-colors touch-manipulation"
             >
               <Trash2 className="h-3.5 w-3.5" />
-            </Button>
+            </button>
           </li>
         );
       })}

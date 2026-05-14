@@ -1,4 +1,3 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ShoppingCart } from "lucide-react";
 
@@ -10,47 +9,41 @@ interface GroceryBudgetCardProps {
 export function GroceryBudgetCard({ budget, spent }: GroceryBudgetCardProps) {
   const remaining = Math.max(0, budget - spent);
   const pct = budget > 0 ? Math.min(100, (spent / budget) * 100) : 0;
-  const isOver = spent > budget;
+  const isOver = spent > budget && budget > 0;
 
   return (
-    <Card className="border-lavender-200 bg-gradient-to-br from-lavender-50 to-white">
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium text-lavender-700">
-          Grocery Budget
-        </CardTitle>
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-lavender-100 text-lavender-600">
-          <ShoppingCart className="h-5 w-5" />
+    <div className="rounded-2xl bg-gradient-to-br from-lavender-50 via-white to-lavender-50/50 p-4 ring-1 ring-lavender-200 shadow-sm">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs font-semibold uppercase tracking-wide text-lavender-600">
+          Groceries
         </span>
-      </CardHeader>
-      <CardContent>
-        <div className="text-3xl font-bold text-lavender-800">
-          ${remaining.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          remaining of ${budget.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} budget
-        </p>
-        <div className="mt-3 space-y-1">
-          <Progress
-            value={pct}
-            className="h-2"
-            indicatorClassName={
-              isOver
-                ? "bg-blush-500"
-                : pct > 80
-                ? "bg-amber-400"
-                : "bg-lavender-400"
-            }
-          />
-          <p className="text-xs text-muted-foreground">
-            {pct.toFixed(0)}% used
-            {isOver && (
-              <span className="ml-1 font-medium text-blush-500">
-                (over budget!)
-              </span>
-            )}
-          </p>
-        </div>
-      </CardContent>
-    </Card>
+        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-lavender-100">
+          <ShoppingCart className="h-4 w-4 text-lavender-600" />
+        </span>
+      </div>
+      <p className="text-2xl font-bold tabular text-lavender-900 leading-none">
+        ${remaining.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+      </p>
+      <p className="mt-1.5 text-xs text-muted-foreground">
+        {isOver ? (
+          <span className="text-blush-500 font-medium">over budget!</span>
+        ) : (
+          `of $${budget.toLocaleString("en-US", { minimumFractionDigits: 0 })} left`
+        )}
+      </p>
+      <div className="mt-3">
+        <Progress
+          value={pct}
+          className="h-1.5"
+          indicatorClassName={
+            isOver
+              ? "bg-blush-400"
+              : pct > 80
+              ? "bg-amber-400"
+              : "bg-lavender-400"
+          }
+        />
+      </div>
+    </div>
   );
 }

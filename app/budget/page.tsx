@@ -99,11 +99,11 @@ export default function BudgetPage() {
   return (
     <div className="min-h-screen bg-cream">
       <Navbar />
-      <main className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-foreground">Budget Settings</h1>
-          <p className="mt-1 text-muted-foreground">
-            Adjust your income, savings, and grocery allocation.
+      <main className="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8 space-y-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Budget</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Adjust your savings and grocery allocation.
           </p>
         </div>
 
@@ -113,7 +113,7 @@ export default function BudgetPage() {
           </div>
         )}
 
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Income summary */}
           <Card>
             <CardHeader>

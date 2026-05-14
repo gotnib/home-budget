@@ -1,4 +1,3 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Receipt } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -16,80 +15,62 @@ interface BillCardProps {
 function isDueSoon(dueDay: number | null | undefined): boolean {
   if (dueDay == null) return false;
   const today = new Date();
-  const currentDay = today.getDate();
-  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-  // Due within next 7 days (wrap around month end)
-  const diff = dueDay - currentDay;
+  const diff = dueDay - today.getDate();
   return diff >= 0 && diff <= 7;
 }
 
 function isOverdue(dueDay: number | null | undefined): boolean {
   if (dueDay == null) return false;
-  const today = new Date();
-  return dueDay < today.getDate();
+  return dueDay < new Date().getDate();
 }
 
 export function BillCard({ total, bills }: BillCardProps) {
-  const upcomingBills = bills
+  const upcoming = bills
     .filter((b) => b.dueDay != null)
     .sort((a, b) => (a.dueDay ?? 0) - (b.dueDay ?? 0))
-    .slice(0, 4);
+    .slice(0, 3);
 
   return (
-    <Card className="border-blush-200 bg-gradient-to-br from-blush-50 to-white">
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium text-blush-700">
-          Monthly Bills
-        </CardTitle>
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blush-100 text-blush-600">
-          <Receipt className="h-5 w-5" />
+    <div className="rounded-2xl bg-gradient-to-br from-blush-50 via-white to-blush-50/50 p-4 ring-1 ring-blush-200 shadow-sm">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs font-semibold uppercase tracking-wide text-blush-600">
+          Bills
         </span>
-      </CardHeader>
-      <CardContent>
-        <div className="text-3xl font-bold text-blush-800">
-          ${total.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {bills.length} recurring {bills.length === 1 ? "bill" : "bills"}
-        </p>
-        {upcomingBills.length > 0 && (
-          <ul className="mt-3 space-y-1.5">
-            {upcomingBills.map((bill, i) => (
-              <li
-                key={i}
-                className="flex items-center justify-between text-xs"
-              >
+        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blush-100">
+          <Receipt className="h-4 w-4 text-blush-600" />
+        </span>
+      </div>
+      <p className="text-2xl font-bold tabular text-blush-900 leading-none">
+        ${total.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+      </p>
+      <p className="mt-1.5 text-xs text-muted-foreground mb-3">
+        {bills.length} recurring bill{bills.length === 1 ? "" : "s"}
+      </p>
+      {upcoming.length > 0 && (
+        <ul className="space-y-1.5">
+          {upcoming.map((bill, i) => {
+            const overdue = isOverdue(bill.dueDay);
+            const soon = !overdue && isDueSoon(bill.dueDay);
+            return (
+              <li key={i} className="flex items-center justify-between gap-2">
                 <span
                   className={cn(
-                    "font-medium",
-                    isOverdue(bill.dueDay)
-                      ? "text-blush-600"
-                      : isDueSoon(bill.dueDay)
-                      ? "text-amber-600"
-                      : "text-foreground"
+                    "text-xs font-medium truncate",
+                    overdue ? "text-blush-600" : soon ? "text-amber-600" : "text-foreground"
                   )}
                 >
                   {bill.name}
-                  {isOverdue(bill.dueDay) && (
-                    <span className="ml-1 text-blush-500">(overdue)</span>
-                  )}
-                  {!isOverdue(bill.dueDay) && isDueSoon(bill.dueDay) && (
-                    <span className="ml-1 text-amber-500">(soon)</span>
-                  )}
                 </span>
-                <span className="text-muted-foreground">
-                  ${bill.amount.toFixed(2)}
-                  {bill.dueDay && (
-                    <span className="ml-1 text-muted-foreground/70">
-                      due {bill.dueDay}th
-                    </span>
-                  )}
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  {overdue && <span className="text-blush-500 mr-1">!</span>}
+                  {soon && !overdue && <span className="text-amber-400 mr-1">·</span>}
+                  {bill.dueDay ? `due ${bill.dueDay}` : ""}
                 </span>
               </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
+            );
+          })}
+        </ul>
+      )}
+    </div>
   );
 }
