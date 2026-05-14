@@ -8,8 +8,6 @@ import { GroceryList } from "@/components/groceries/GroceryList";
 import { GroceryCart } from "@/components/groceries/GroceryCart";
 import { WalmartExportButton } from "@/components/groceries/WalmartExportButton";
 import { ManualGroceryItemForm } from "@/components/forms/ManualGroceryItemForm";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
 
 interface GroceryItem {
   id: string;
@@ -23,7 +21,6 @@ export default function GroceriesPage() {
   const [items, setItems] = useState<GroceryItem[]>([]);
   const [budget, setBudget] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const fetchItems = useCallback(async () => {
     const res = await fetch("/api/groceries/cart");
@@ -71,20 +68,20 @@ export default function GroceriesPage() {
     if (res.ok) setItems((prev) => prev.filter((i) => i.id !== id));
   }
 
-  const plannedItems = items.filter((i) => i.status === "planned");
+  const plannedItems   = items.filter((i) => i.status === "planned");
   const purchasedItems = items.filter((i) => i.status === "purchased");
   const totalEstimated = items.reduce((s, i) => s + (i.estimatedPrice ?? 0) * i.quantity, 0);
-  const remaining = Math.max(0, budget - totalEstimated);
-  const isOver = totalEstimated > budget && budget > 0;
+  const remaining      = Math.max(0, budget - totalEstimated);
+  const isOver         = totalEstimated > budget && budget > 0;
 
   if (isLoading) {
     return (
-      <div className="min-h-screen page-gradient">
+      <div className="app-layout">
         <Navbar />
-        <div className="flex items-center justify-center py-32">
-          <div className="flex flex-col items-center gap-3">
-            <Loader2 className="h-8 w-8 animate-spin text-honey-400" />
-            <p className="text-sm text-muted-foreground">Loading your list…</p>
+        <div className="loading-center">
+          <div className="loading-col">
+            <Loader2 style={{ width: "2rem", height: "2rem", color: "var(--honey-400)", animation: "spin 1s linear infinite" }} />
+            <p style={{ fontSize: "0.875rem", color: "var(--color-muted)" }}>Loading your list…</p>
           </div>
         </div>
       </div>
@@ -92,138 +89,113 @@ export default function GroceriesPage() {
   }
 
   return (
-    <div className="min-h-screen page-gradient">
+    <div className="app-layout">
       <Navbar />
 
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      <main className="page-container">
         {/* Header */}
-        <div className="mb-6 flex items-start justify-between gap-4 animate-fade-up">
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem" }} className="animate-fade-up">
           <div>
-            <p className="section-label mb-1">Grocery Planner</p>
+            <p className="section-label" style={{ marginBottom: "0.25rem" }}>Grocery Planner</p>
             <h1 className="page-title">Grocery List</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Build your list, track your budget, export to Walmart.
-            </p>
+            <p style={{ marginTop: "0.25rem", fontSize: "0.875rem", color: "var(--color-muted)" }}>Build your list, track your budget, export to Walmart.</p>
           </div>
-          <div className="hidden sm:block animate-fade-in delay-200">
+          <div style={{ display: "none" }} className="animate-fade-in delay-200" id="walmart-desktop">
             <WalmartExportButton />
           </div>
         </div>
 
-        {error && (
-          <div className="mb-4 rounded-2xl bg-blush-50 px-4 py-3 text-sm text-blush-700 ring-1 ring-blush-200 animate-slide-up">
-            {error}
-          </div>
-        )}
-
-        <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
+        <div style={{ display: "grid", gap: "1rem" }} id="groceries-layout">
           {/* Main column */}
-          <div className="space-y-4">
+          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
 
-            {/* Search */}
-            <Card className="animate-fade-up delay-100">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold text-foreground">
-                  🔍 Search items
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+            <div className="card animate-fade-up delay-100">
+              <div className="card-header">
+                <h3 className="card-title">🔍 Search items</h3>
+              </div>
+              <div className="card-body">
                 <GrocerySearch onAddItem={handleAddItem} />
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
-            {/* Manual add */}
-            <Card className="animate-fade-up delay-150">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold text-foreground">
-                  ✏️ Add manually
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+            <div className="card animate-fade-up delay-150">
+              <div className="card-header">
+                <h3 className="card-title">✏️ Add manually</h3>
+              </div>
+              <div className="card-body">
                 <ManualGroceryItemForm onSuccess={fetchItems} />
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
-            {/* Planned list */}
             {plannedItems.length > 0 ? (
-              <Card className="animate-fade-up delay-200">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center justify-between text-sm font-semibold">
-                    <span>To buy</span>
-                    <span className="rounded-full bg-honey-100 px-2.5 py-0.5 text-xs font-bold text-honey-700 ring-1 ring-honey-200">
-                      {plannedItems.length}
-                    </span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
+              <div className="card animate-fade-up delay-200">
+                <div className="card-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <h3 className="card-title">To buy</h3>
+                  <span className="badge badge--honey">{plannedItems.length}</span>
+                </div>
+                <div className="card-body">
                   <GroceryList items={plannedItems} onUpdate={handleUpdate} onDelete={handleDelete} />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             ) : (
-              <div className="empty-state animate-fade-up delay-200 gap-3">
-                <span className="text-5xl">🛒</span>
+              <div className="empty-state animate-fade-up delay-200">
+                <span style={{ fontSize: "3rem" }}>🛒</span>
                 <div>
-                  <p className="font-semibold text-foreground">Your list is empty</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Search above or add items manually.
-                  </p>
+                  <p style={{ fontWeight: 600, color: "var(--color-fg)" }}>Your list is empty</p>
+                  <p style={{ marginTop: "0.25rem", fontSize: "0.875rem", color: "var(--color-muted)" }}>Search above or add items manually.</p>
                 </div>
               </div>
             )}
 
-            {/* Purchased */}
             {purchasedItems.length > 0 && (
-              <Card className="opacity-75 animate-fade-up delay-250">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center justify-between text-sm font-semibold text-muted-foreground">
-                    <span>In cart</span>
-                    <span className="rounded-full bg-sage-100 px-2.5 py-0.5 text-xs font-bold text-sage-700 ring-1 ring-sage-200">
-                      {purchasedItems.length}
-                    </span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
+              <div className="card animate-fade-up delay-250" style={{ opacity: 0.75 }}>
+                <div className="card-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <h3 className="card-title" style={{ color: "var(--color-muted)" }}>In cart</h3>
+                  <span className="badge badge--sage">{purchasedItems.length}</span>
+                </div>
+                <div className="card-body">
                   <GroceryList items={purchasedItems} onUpdate={handleUpdate} onDelete={handleDelete} />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             )}
 
             {/* Mobile export */}
-            <div className="sm:hidden animate-fade-up delay-300">
+            <div className="animate-fade-up delay-300" style={{ display: "block" }} id="walmart-mobile">
               <WalmartExportButton />
             </div>
           </div>
 
-          {/* Desktop sidebar */}
-          <div className="hidden lg:block space-y-4 animate-fade-up delay-200">
+          {/* Desktop sidebar — hidden on mobile via CSS */}
+          <div style={{ display: "none" }} id="groceries-sidebar">
             <GroceryCart items={items} budget={budget} />
           </div>
         </div>
       </main>
 
-      {/* Mobile floating cart pill */}
+      {/* Floating cart pill (mobile) */}
       {items.length > 0 && (
-        <div className="fixed bottom-[calc(56px+env(safe-area-inset-bottom)+10px)] left-1/2 -translate-x-1/2 z-40 lg:hidden animate-slide-up">
-          <div
-            className={cn(
-              "flex items-center gap-3 rounded-full px-5 py-3 text-sm font-semibold shadow-soft-lg ring-1 backdrop-blur-md transition-all duration-300",
-              isOver
-                ? "bg-blush-500/92 text-white ring-blush-400"
-                : "bg-white/92 text-foreground ring-cream-200"
-            )}
-          >
-            <ShoppingBag className="h-4 w-4 flex-shrink-0" />
-            <span>
-              {items.reduce((s, i) => s + i.quantity, 0)} items ·{" "}
-              <span className={isOver ? "font-bold" : "font-bold text-sage-700"}>
-                {isOver
-                  ? `-$${(totalEstimated - budget).toFixed(0)} over`
-                  : `$${remaining.toFixed(0)} left`}
-              </span>
+        <div className={`floating-cart${isOver ? " floating-cart--over" : " floating-cart--ok"}`} style={{ display: "flex" }} id="floating-cart">
+          <ShoppingBag style={{ width: "1rem", height: "1rem", flexShrink: 0 }} />
+          <span>
+            {items.reduce((s, i) => s + i.quantity, 0)} items ·{" "}
+            <span className={isOver ? "floating-cart-amount--over" : "floating-cart-amount--ok"}>
+              {isOver ? `-$${(totalEstimated - budget).toFixed(0)} over` : `$${remaining.toFixed(0)} left`}
             </span>
-          </div>
+          </span>
         </div>
       )}
+
+      <style>{`
+        @media (min-width: 640px) {
+          #walmart-desktop { display: block !important; }
+          #walmart-mobile  { display: none !important; }
+        }
+        @media (min-width: 1024px) {
+          #groceries-layout { grid-template-columns: 1fr 280px; }
+          #groceries-sidebar { display: flex !important; flex-direction: column; gap: 1rem; }
+          #floating-cart { display: none !important; }
+        }
+      `}</style>
     </div>
   );
 }

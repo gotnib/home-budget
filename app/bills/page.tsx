@@ -5,10 +5,6 @@ import { Loader2, Trash2, Building2, Receipt } from "lucide-react";
 import Link from "next/link";
 import { Navbar } from "@/components/layout/Navbar";
 import { ManualBillForm } from "@/components/forms/ManualBillForm";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { cn } from "@/lib/utils";
 
 interface Bill {
   id: string;
@@ -20,10 +16,7 @@ interface Bill {
 }
 
 const CADENCE_LABEL: Record<string, string> = {
-  weekly: "Weekly",
-  biweekly: "Bi-weekly",
-  monthly: "Monthly",
-  annually: "Annually",
+  weekly: "Weekly", biweekly: "Bi-weekly", monthly: "Monthly", annually: "Annually",
 };
 
 function monthlyAmount(amount: number, cadence: string): number {
@@ -59,11 +52,8 @@ export default function BillsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setBills(data.bills);
-    } catch {
-      setError("Failed to load bills.");
-    } finally {
-      setIsLoading(false);
-    }
+    } catch { setError("Failed to load bills."); }
+    finally { setIsLoading(false); }
   }, []);
 
   useEffect(() => { fetchBills(); }, [fetchBills]);
@@ -71,150 +61,120 @@ export default function BillsPage() {
   async function handleDelete(id: string) {
     setDeletingId(id);
     try {
-      await fetch("/api/bills", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
-      });
+      await fetch("/api/bills", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
       setBills((prev) => prev.filter((b) => b.id !== id));
-    } catch {
-      setError("Failed to delete bill.");
-    } finally {
-      setDeletingId(null);
-    }
+    } catch { setError("Failed to delete bill."); }
+    finally { setDeletingId(null); }
   }
 
   const totalMonthly = bills.reduce((s, b) => s + monthlyAmount(b.amount, b.cadence), 0);
 
   return (
-    <div className="min-h-screen page-gradient">
+    <div className="app-layout">
       <Navbar />
-      <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8 space-y-4">
+      <main className="page-container--md">
 
-        {/* Header */}
         <div className="animate-fade-up">
-          <p className="section-label mb-1">Expenses</p>
+          <p className="section-label" style={{ marginBottom: "0.25rem" }}>Expenses</p>
           <h1 className="page-title">Bills</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Track your recurring expenses and due dates.</p>
+          <p style={{ marginTop: "0.25rem", fontSize: "0.875rem", color: "var(--color-muted)" }}>Track your recurring expenses and due dates.</p>
         </div>
 
-        {error && (
-          <div className="rounded-2xl bg-blush-50 px-4 py-3 text-sm text-blush-700 ring-1 ring-blush-200 animate-slide-up">
-            {error}
-          </div>
-        )}
+        {error && <div className="alert alert--error animate-slide-up">{error}</div>}
 
-        {/* Summary hero card */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blush-400 to-blush-600 p-5 text-white shadow-soft animate-fade-up delay-50">
-          <div className="absolute inset-0 opacity-10"
-            style={{ backgroundImage: "radial-gradient(circle at 90% 10%, white 0%, transparent 60%)" }}
-          />
-          <div className="relative flex items-center justify-between">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/70">
-                Total monthly
-              </p>
-              <p className="mt-2 text-4xl font-bold tabular text-white">
-                ${totalMonthly.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-              </p>
-              <p className="mt-1 text-sm text-white/60">
-                {bills.length} recurring bill{bills.length === 1 ? "" : "s"}
-              </p>
-            </div>
-            <div className="flex flex-col items-end gap-2">
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm">
-                <Receipt className="h-6 w-6 text-white" />
-              </span>
-              <Link href="/settings">
-                <button className="flex items-center gap-1.5 rounded-xl bg-white/20 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/30 active:scale-[0.97]">
-                  <Building2 className="h-3.5 w-3.5" />
-                  Import from bank
-                </button>
-              </Link>
+        {/* Summary hero */}
+        <div className="stat-hero stat-hero--blush animate-fade-up delay-50" style={{ padding: "1.25rem" }}>
+          <div className="stat-hero-content">
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div>
+                <p className="stat-hero-label">Total monthly</p>
+                <p className="stat-hero-value" style={{ fontSize: "2.25rem", marginTop: "0.5rem" }}>
+                  ${totalMonthly.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </p>
+                <p className="stat-hero-sub">{bills.length} recurring bill{bills.length === 1 ? "" : "s"}</p>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.5rem" }}>
+                <span className="stat-hero-icon" style={{ width: "3rem", height: "3rem" }}>
+                  <Receipt style={{ width: "1.5rem", height: "1.5rem", color: "white" }} />
+                </span>
+                <Link href="/settings">
+                  <button className="btn--glass">
+                    <Building2 style={{ width: "0.875rem", height: "0.875rem" }} />
+                    Import from bank
+                  </button>
+                </Link>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Add form */}
-        <Card className="animate-fade-up delay-100">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold text-blush-700">Add a bill</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <div className="card animate-fade-up delay-100">
+          <div className="card-header">
+            <h3 className="card-title" style={{ color: "var(--blush-700)" }}>Add a bill</h3>
+          </div>
+          <div className="card-body">
             <ManualBillForm onSuccess={fetchBills} />
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* Bills list */}
-        <Card className="animate-fade-up delay-150">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center justify-between text-sm font-semibold">
-              <span>Your bills</span>
-              {bills.length > 0 && (
-                <span className="rounded-full bg-blush-100 px-2.5 py-0.5 text-xs font-bold text-blush-700 ring-1 ring-blush-200">
-                  {bills.length}
-                </span>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+        <div className="card animate-fade-up delay-150">
+          <div className="card-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <h3 className="card-title">Your bills</h3>
+            {bills.length > 0 && (
+              <span className="badge badge--blush">{bills.length}</span>
+            )}
+          </div>
+          <div className="card-body">
             {isLoading ? (
-              <div className="flex justify-center py-10">
-                <Loader2 className="h-6 w-6 animate-spin text-blush-400" />
+              <div className="loading-center">
+                <Loader2 style={{ width: "1.5rem", height: "1.5rem", color: "var(--blush-400)", animation: "spin 1s linear infinite" }} />
               </div>
             ) : bills.length === 0 ? (
-              <div className="empty-state gap-3">
-                <span className="text-4xl">📋</span>
+              <div className="empty-state">
+                <span style={{ fontSize: "2.5rem" }}>📋</span>
                 <div>
-                  <p className="font-semibold text-foreground">No bills yet</p>
-                  <p className="text-sm text-muted-foreground">Add your first bill above.</p>
+                  <p style={{ fontWeight: 600, color: "var(--color-fg)" }}>No bills yet</p>
+                  <p style={{ fontSize: "0.875rem", color: "var(--color-muted)" }}>Add your first bill above.</p>
                 </div>
               </div>
             ) : (
-              <ul className="space-y-0.5">
+              <ul style={{ display: "flex", flexDirection: "column", gap: "0.125rem" }}>
                 {bills.map((bill, i) => {
                   const over = isOverdue(bill.dueDay);
                   const soon = !over && isDueSoon(bill.dueDay);
                   return (
                     <li key={bill.id}>
-                      {i > 0 && <Separator className="my-1.5 bg-cream-100" />}
-                      <div className="group flex items-center gap-3 rounded-xl px-1 py-2 transition-colors hover:bg-cream-50">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="font-semibold text-foreground text-sm truncate">{bill.name}</span>
-                            {bill.source === "plaid" && (
-                              <span className="chip bg-lavender-50 text-lavender-700 ring-lavender-200">bank</span>
-                            )}
-                            {over && (
-                              <span className="chip bg-blush-50 text-blush-600 ring-blush-200">overdue</span>
-                            )}
-                            {soon && (
-                              <span className="chip bg-honey-50 text-honey-700 ring-honey-200">due soon</span>
-                            )}
+                      {i > 0 && <hr className="separator" />}
+                      <div className="list-item-row">
+                        <div className="list-item-content">
+                          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.375rem" }}>
+                            <span className="list-item-name">{bill.name}</span>
+                            {bill.source === "plaid" && <span className="badge badge--lavender">bank</span>}
+                            {over  && <span className="badge badge--blush">overdue</span>}
+                            {soon  && <span className="badge badge--honey">due soon</span>}
                           </div>
-                          <p className="text-xs text-muted-foreground mt-0.5">
+                          <p className="list-item-meta">
                             {CADENCE_LABEL[bill.cadence] ?? bill.cadence}
                             {bill.dueDay != null && ` · due the ${bill.dueDay}th`}
                             {" · "}
-                            <span className={cn("font-semibold", over ? "text-blush-600" : "text-foreground")}>
+                            <strong style={{ fontWeight: 600, color: over ? "var(--blush-600)" : "var(--color-fg)" }}>
                               ${monthlyAmount(bill.amount, bill.cadence).toFixed(0)}/mo
-                            </span>
+                            </strong>
                           </p>
                         </div>
-                        <p className="font-bold tabular text-sm text-foreground whitespace-nowrap">
-                          ${bill.amount.toFixed(2)}
-                        </p>
+                        <p className="list-item-amount">${bill.amount.toFixed(2)}</p>
                         <button
                           onClick={() => handleDelete(bill.id)}
                           disabled={deletingId === bill.id}
                           aria-label="Delete bill"
-                          className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl text-muted-foreground/40 opacity-0 transition-all group-hover:opacity-100 hover:bg-blush-50 hover:text-blush-500 disabled:opacity-30"
+                          className="list-item-delete"
                         >
-                          {deletingId === bill.id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-3.5 w-3.5" />
-                          )}
+                          {deletingId === bill.id
+                            ? <Loader2 style={{ width: "0.875rem", height: "0.875rem", animation: "spin 1s linear infinite" }} />
+                            : <Trash2 style={{ width: "0.875rem", height: "0.875rem" }} />
+                          }
                         </button>
                       </div>
                     </li>
@@ -222,8 +182,8 @@ export default function BillsPage() {
                 })}
               </ul>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </main>
     </div>
   );

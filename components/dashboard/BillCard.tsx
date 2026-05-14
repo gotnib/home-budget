@@ -1,5 +1,4 @@
 import { Receipt } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 interface Bill {
   name: string;
@@ -30,43 +29,32 @@ export function BillCard({ total, bills }: BillCardProps) {
     .slice(0, 3);
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-blush-400 to-blush-600 p-5 text-white shadow-soft transition-all duration-300 hover:shadow-soft-lg hover:-translate-y-0.5">
-      <div className="absolute inset-0 opacity-10"
-        style={{ backgroundImage: "radial-gradient(circle at 80% 20%, white 0%, transparent 50%)" }}
-      />
-
-      <div className="relative">
-        <div className="flex items-start justify-between">
-          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/70">
-            Monthly Bills
-          </span>
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm transition-transform duration-300 group-hover:scale-110">
-            <Receipt className="h-4 w-4 text-white" strokeWidth={2} />
+    <div className="stat-hero stat-hero--blush">
+      <div className="stat-hero-content">
+        <div className="stat-hero-row">
+          <span className="stat-hero-label">Monthly Bills</span>
+          <span className="stat-hero-icon">
+            <Receipt style={{ width: "1rem", height: "1rem", color: "white" }} strokeWidth={2} />
           </span>
         </div>
-
-        <p className="mt-3 text-3xl font-bold tabular leading-none text-white">
+        <p className="stat-hero-value">
           ${total.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
         </p>
-        <p className="mt-1.5 text-xs text-white/60 mb-3">
+        <p className="stat-hero-sub" style={{ marginBottom: upcoming.length > 0 ? "0.75rem" : 0 }}>
           {bills.length} recurring bill{bills.length === 1 ? "" : "s"}
         </p>
 
         {upcoming.length > 0 && (
-          <ul className="space-y-1.5 border-t border-white/20 pt-3">
+          <ul style={{ display: "flex", flexDirection: "column", gap: "0.375rem", borderTop: "1px solid rgba(255,255,255,0.2)", paddingTop: "0.75rem" }}>
             {upcoming.map((bill, i) => {
               const over = isOverdue(bill.dueDay);
-              const soon = !over && isDueSoon(bill.dueDay);
               return (
-                <li key={i} className="flex items-center justify-between gap-2">
-                  <span className={cn(
-                    "text-xs font-medium truncate",
-                    over ? "text-white" : soon ? "text-white/90" : "text-white/70"
-                  )}>
-                    {over && <span className="mr-1">⚠</span>}
+                <li key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
+                  <span style={{ fontSize: "0.75rem", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: over ? "white" : "rgba(255,255,255,0.7)" }}>
+                    {over && <span style={{ marginRight: "0.25rem" }}>⚠</span>}
                     {bill.name}
                   </span>
-                  <span className="text-[10px] text-white/60 whitespace-nowrap">
+                  <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.6)", whiteSpace: "nowrap" }}>
                     {bill.dueDay ? `due ${bill.dueDay}` : ""}
                   </span>
                 </li>

@@ -11,61 +11,60 @@ export function GroceryCart({ items, budget }: GroceryCartProps) {
   const remaining = Math.max(0, budget - total);
   const pct = budget > 0 ? Math.min(100, (total / budget) * 100) : 0;
   const isOver = total > budget && budget > 0;
+  const fmt = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD" });
 
-  const fmt = (n: number) =>
-    n.toLocaleString("en-US", { style: "currency", currency: "USD" });
+  const barColor = isOver
+    ? "linear-gradient(to right, #ef7a9a, #f4a7b9)"
+    : pct > 80
+    ? "linear-gradient(to right, #f5b83a, #e8a44a)"
+    : "linear-gradient(to right, #9acba0, #7fb685)";
 
   return (
-    <div className="rounded-2xl bg-gradient-to-b from-lavender-50 to-white p-5 ring-1 ring-lavender-200 shadow-card">
-      <div className="flex items-center gap-2 mb-4">
-        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-lavender-100">
-          <ShoppingBag className="h-4 w-4 text-lavender-600" />
+    <div className="cart-sidebar">
+      <div className="cart-sidebar-head">
+        <span className="icon-pill icon-pill--lavender icon-pill--sm">
+          <ShoppingBag style={{ width: "1rem", height: "1rem" }} />
         </span>
-        <p className="font-semibold text-sm text-lavender-800">Cart Summary</p>
+        <p style={{ fontWeight: 600, fontSize: "0.875rem", color: "var(--lavender-800)" }}>Cart Summary</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-2.5 mb-4">
-        <div className="rounded-xl bg-white p-3 shadow-soft ring-1 ring-cream-200 text-center">
-          <p className="text-2xl font-bold tabular text-lavender-800">{itemCount}</p>
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mt-0.5">items</p>
+      <div className="cart-summary-grid">
+        <div className="cart-stat-mini">
+          <p className="cart-stat-mini-val">{itemCount}</p>
+          <p className="cart-stat-mini-label">items</p>
         </div>
-        <div className="rounded-xl bg-white p-3 shadow-soft ring-1 ring-cream-200 text-center">
-          <p className="text-lg font-bold tabular text-foreground leading-tight">{fmt(total)}</p>
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mt-0.5">est. total</p>
+        <div className="cart-stat-mini">
+          <p className="cart-stat-mini-val" style={{ fontSize: "1.125rem" }}>{fmt(total)}</p>
+          <p className="cart-stat-mini-label">est. total</p>
         </div>
       </div>
 
       {budget > 0 && (
-        <div className="rounded-xl bg-white p-3.5 shadow-soft ring-1 ring-cream-200 space-y-2.5">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground font-medium">Budget</span>
-            <span className="font-bold tabular text-foreground">{fmt(budget)}</span>
+        <div className="cart-budget-box">
+          <div className="cart-budget-row">
+            <span className="cart-budget-label">Budget</span>
+            <span className="cart-budget-val">{fmt(budget)}</span>
           </div>
 
-          <div className="h-2 w-full rounded-full bg-cream-200 overflow-hidden">
+          <div className="progress-track">
             <div
-              className="h-full rounded-full transition-all duration-700 ease-spring"
-              style={{
-                width: `${pct}%`,
-                background: isOver
-                  ? "linear-gradient(to right, #ef7a9a, #f4a7b9)"
-                  : pct > 80
-                  ? "linear-gradient(to right, #f5b83a, #e8a44a)"
-                  : "linear-gradient(to right, #9acba0, #7fb685)",
-              }}
+              className="progress-fill"
+              style={{ width: `${pct}%`, background: barColor }}
             />
           </div>
 
-          <div className="flex items-center justify-between text-xs">
-            <span className={`flex items-center gap-1 font-medium ${isOver ? "text-blush-600" : "text-muted-foreground"}`}>
-              {isOver ? "⚠ Over by" : (
+          <div className="cart-budget-row">
+            <span className={`cart-remaining-label${isOver ? " cart-remaining-label--over" : " cart-remaining-label--ok"}`}>
+              {isOver ? (
+                "⚠ Over by"
+              ) : (
                 <>
-                  <TrendingDown className="h-3 w-3 text-sage-500" />
+                  <TrendingDown style={{ width: "0.75rem", height: "0.75rem", color: "var(--sage-500)" }} />
                   Remaining
                 </>
               )}
             </span>
-            <span className={`font-bold tabular ${isOver ? "text-blush-600" : "text-sage-700"}`}>
+            <span className={isOver ? "cart-remaining-val--over" : "cart-remaining-val--ok"}>
               {isOver ? fmt(total - budget) : fmt(remaining)}
             </span>
           </div>
@@ -73,7 +72,7 @@ export function GroceryCart({ items, budget }: GroceryCartProps) {
       )}
 
       {items.length === 0 && (
-        <p className="text-center text-xs text-muted-foreground/60 py-2">
+        <p style={{ textAlign: "center", fontSize: "0.75rem", color: "rgba(154,126,90,0.6)", paddingTop: "0.5rem" }}>
           Add items to see your totals
         </p>
       )}
