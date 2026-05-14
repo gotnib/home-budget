@@ -1,143 +1,115 @@
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ─── CSS Variables ──────────────────────────────────────────── */
 @layer base {
   :root {
-    --background: 40 60% 97%;
-    --foreground: 25 20% 18%;
+    --background:        40 60% 98%;
+    --foreground:        30 25% 12%;
+    --card:              40 40% 99%;
+    --card-foreground:   30 25% 12%;
+    --popover:           40 40% 99%;
+    --popover-foreground:30 25% 12%;
+    --primary:           38 92% 51%;   /* honey-500 */
+    --primary-foreground:30 80% 15%;   /* bark-dark */
+    --secondary:         40 30% 94%;
+    --secondary-foreground:30 25% 25%;
+    --muted:             40 20% 92%;
+    --muted-foreground:  30 15% 46%;
+    --accent:            135 25% 60%;  /* sage */
+    --accent-foreground: 135 35% 15%;
+    --destructive:       0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border:            38 30% 88%;
+    --input:             38 30% 88%;
+    --ring:              38 92% 51%;
+    --radius:            0.75rem;
 
-    --card: 0 0% 100%;
-    --card-foreground: 25 20% 18%;
+    --font-dm-sans: 'DM Sans';
+    --font-lora:    'Lora';
+  }
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 25 20% 18%;
-
-    --primary: 344 78% 80%;
-    --primary-foreground: 344 50% 18%;
-
-    --secondary: 130 20% 60%;
-    --secondary-foreground: 130 30% 12%;
-
-    --muted: 40 30% 93%;
-    --muted-foreground: 25 15% 48%;
-
-    --accent: 270 40% 82%;
-    --accent-foreground: 270 30% 18%;
-
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 40 20% 90%;
-    --input: 40 20% 90%;
-    --ring: 344 78% 75%;
-
-    --radius: 0.875rem;
+  .dark {
+    --background:        30 20% 8%;
+    --foreground:        40 30% 92%;
+    --card:              30 18% 11%;
+    --card-foreground:   40 30% 92%;
+    --popover:           30 18% 11%;
+    --popover-foreground:40 30% 92%;
+    --primary:           38 92% 51%;
+    --primary-foreground:30 80% 10%;
+    --secondary:         30 15% 16%;
+    --secondary-foreground:40 20% 75%;
+    --muted:             30 12% 18%;
+    --muted-foreground:  40 12% 58%;
+    --accent:            135 20% 35%;
+    --accent-foreground: 135 30% 85%;
+    --destructive:       0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border:            30 15% 22%;
+    --input:             30 15% 22%;
+    --ring:              38 92% 51%;
   }
 }
 
+/* ─── Base Styles ────────────────────────────────────────────── */
 @layer base {
   * {
     @apply border-border;
   }
-
-  html {
-    scroll-behavior: smooth;
-    -webkit-tap-highlight-color: transparent;
-  }
-
   body {
-    @apply bg-cream text-foreground antialiased;
-    background-color: #fdf8f0;
-    font-family: var(--font-inter), system-ui, sans-serif;
-    /* Safe area support for notched phones */
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
+    @apply bg-background text-foreground font-sans antialiased;
+    background-image:
+      radial-gradient(ellipse 80% 60% at 50% -20%, hsl(38 92% 51% / 0.06) 0%, transparent 70%),
+      radial-gradient(ellipse 60% 40% at 80% 80%, hsl(135 25% 60% / 0.05) 0%, transparent 60%);
+    background-attachment: fixed;
   }
-
-  /* Mobile: reserve space for fixed bottom tab bar */
-  body {
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-semibold tracking-tight;
-  }
-
-  input, select, textarea {
-    font-size: 16px; /* prevents iOS zoom on focus */
+  h1, h2, h3, h4 {
+    @apply font-serif;
   }
 }
 
+/* ─── Animation Utilities ────────────────────────────────────── */
 @layer utilities {
-  /* Card styles */
-  .honeycart-card {
-    @apply rounded-2xl border border-cream-200 bg-white shadow-sm;
+  /* Stagger helpers — apply animation-delay via inline style or these classes */
+  .delay-75  { animation-delay: 75ms; }
+  .delay-100 { animation-delay: 100ms; }
+  .delay-150 { animation-delay: 150ms; }
+  .delay-200 { animation-delay: 200ms; }
+  .delay-300 { animation-delay: 300ms; }
+  .delay-400 { animation-delay: 400ms; }
+  .delay-500 { animation-delay: 500ms; }
+
+  /* Honey glow used on hero card */
+  .honey-glow {
+    box-shadow: 0 0 40px hsl(38 92% 51% / 0.18), 0 8px 32px hsl(38 92% 51% / 0.08);
   }
 
-  /* Soft page gradient */
-  .honeycart-gradient {
-    background: linear-gradient(160deg, #fdf8f0 0%, #fde8ee 50%, #eff8f0 100%);
+  /* Subtle card hover lift */
+  .card-lift {
+    @apply transition-all duration-200 ease-out;
+  }
+  .card-lift:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 28px hsl(38 92% 51% / 0.12), 0 4px 12px hsl(0 0% 0% / 0.06);
   }
 
-  /* Subtle animated gradient for hero sections */
-  .hero-gradient {
-    background: radial-gradient(ellipse 80% 60% at 50% -10%, #fde2ea 0%, transparent 60%),
-                radial-gradient(ellipse 60% 50% at 0% 100%, #eff6f0 0%, transparent 60%),
-                #fdf8f0;
+  /* Progress bar fill animation */
+  .progress-animated {
+    animation: progress-fill 1s cubic-bezier(0.34, 1.56, 0.64, 1) both;
   }
 
-  /* Floating blob decoration */
-  .blob {
-    border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
-  }
-
-  .text-balance {
-    text-wrap: balance;
-  }
-
-  /* Number display with tabular figures */
-  .tabular {
-    font-variant-numeric: tabular-nums;
-  }
-
-  /* Glass card effect */
-  .glass-card {
-    @apply bg-white/70 backdrop-blur-sm border border-white/80 rounded-2xl shadow-sm;
-  }
-
-  /* Smooth page transitions */
-  .page-enter {
-    @apply animate-fade-in;
+  /* Number counter shimmer while counting */
+  .counting {
+    @apply opacity-80 tabular-nums;
   }
 }
 
-@layer components {
-  /* Stat number – big readable budget figures */
-  .stat-number {
-    @apply text-3xl font-bold tabular tracking-tight;
-  }
-
-  /* Section header on inner pages */
-  .page-header {
-    @apply mb-6 space-y-1;
-  }
-
-  .page-title {
-    @apply text-2xl font-bold sm:text-3xl;
-  }
-
-  .page-subtitle {
-    @apply text-sm text-muted-foreground;
-  }
-
-  /* Chip / pill tag */
-  .chip {
-    @apply inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ring-1;
-  }
-
-  /* Bottom tab bar safe area spacer */
-  .bottom-tab-spacer {
-    height: calc(4rem + env(safe-area-inset-bottom));
-  }
-}
+/* ─── Scrollbar ──────────────────────────────────────────────── */
+::-webkit-scrollbar        { width: 6px; height: 6px; }
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  { background: hsl(38 30% 80%); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: hsl(38 60% 65%); }
