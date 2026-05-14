@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model UserProfile {
+  id        String   @id
+  email     String   @unique
+  createdAt DateTime @default(now())
+
+  plaidItems     PlaidItem[]
+  incomes        Income[]
+  bills          Bill[]
+  groceries      GroceryItem[]
+  budgetSettings BudgetSettings?
+}
+
+model PlaidItem {
+  id              String   @id @default(cuid())
+  userId          String
+  accessToken     String
+  itemId          String
+  institutionName String?
+  createdAt       DateTime @default(now())
+
+  user UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Transaction {
+  id           String   @id @default(cuid())
+  userId       String
+  plaidId      String?  @unique
+  name         String
+  amount       Float
+  date         DateTime
+  category     String?
+  merchantName String?
+  type         String
+  source       String
+  createdAt    DateTime @default(now())
+}
+
+model Income {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  amount    Float
+  cadence   String
+  source    String
+  createdAt DateTime @default(now())
+
+  user UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Bill {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  amount    Float
+  dueDay    Int?
+  cadence   String
+  source    String
+  createdAt DateTime @default(now())
+
+  user UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model GroceryItem {
+  id             String   @id @default(cuid())
+  userId         String
+  name           String
+  quantity       Int      @default(1)
+  estimatedPrice Float?
+  store          String   @default("walmart")
+  status         String   @default("planned")
+  createdAt      DateTime @default(now())
+
+  user UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model BudgetSettings {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  groceryPercent Float    @default(25)
+  savingsGoal    Float    @default(0)
+  updatedAt      DateTime @updatedAt
+
+  user UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
