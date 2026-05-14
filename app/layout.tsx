@@ -1,18 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { DM_Sans, Lora } from "next/font/google";
 import "./globals.css";
-
-const dmSans = DM_Sans({
-  subsets:  ["latin"],
-  variable: "--font-dm-sans",
-  axes:     ["opsz"],
-});
-
-const lora = Lora({
-  subsets:  ["latin"],
-  variable: "--font-lora",
-  style:    ["normal", "italic"],
-});
 
 export const metadata: Metadata = {
   title:       "HoneyCart — Family Budget",
@@ -40,7 +27,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${dmSans.variable} ${lora.variable}`}>
+      <body>
         {children}
       </body>
     </html>

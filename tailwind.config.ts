@@ -122,7 +122,8 @@ const config: Config = {
         "4xl": "1.5rem",
       },
       fontFamily: {
-        sans: ["var(--font-inter)", "system-ui", "sans-serif"],
+        sans: ["var(--font-dm-sans)", "system-ui", "sans-serif"],
+        serif: ["var(--font-lora)", "Georgia", "serif"],
       },
       boxShadow: {
         "honey": "0 4px 24px -4px rgba(232, 164, 74, 0.25)",
@@ -186,6 +187,14 @@ const config: Config = {
           "0%, 100%": { opacity: "1" },
           "50%": { opacity: "0.7" },
         },
+        "sparkle-drift": {
+          "0%, 100%": { transform: "translate3d(0, 0, 0) rotate(0deg)" },
+          "50%": { transform: "translate3d(10px, -12px, 0) rotate(8deg)" },
+        },
+        "cute-pop": {
+          "0%, 100%": { transform: "translateY(0) scale(1)" },
+          "45%": { transform: "translateY(-4px) scale(1.04)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -201,6 +210,8 @@ const config: Config = {
         float: "float 3s ease-in-out infinite",
         "tab-bounce": "tab-bounce 0.4s cubic-bezier(0.16, 1, 0.3, 1)",
         "pulse-gentle": "pulse-gentle 2s ease-in-out infinite",
+        "sparkle-drift": "sparkle-drift 5s ease-in-out infinite",
+        "cute-pop": "cute-pop 2.5s ease-in-out infinite",
       },
       transitionTimingFunction: {
         spring: "cubic-bezier(0.16, 1, 0.3, 1)",
