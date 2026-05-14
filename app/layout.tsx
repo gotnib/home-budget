@@ -1,52 +1,47 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { DM_Sans, Lora } from "next/font/google";
 import "./globals.css";
-import { Toaster } from "@/components/ui/toaster";
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
+const dmSans = DM_Sans({
+  subsets:  ["latin"],
+  variable: "--font-dm-sans",
+  axes:     ["opsz"],
+});
+
+const lora = Lora({
+  subsets:  ["latin"],
+  variable: "--font-lora",
+  style:    ["normal", "italic"],
 });
 
 export const metadata: Metadata = {
-  title: {
-    default: "HoneyCart Budget",
-    template: "%s | HoneyCart Budget",
-  },
-  description:
-    "Cute, minimal budgeting and grocery planning. Know your numbers, fill your cart.",
-  keywords: ["budget", "grocery", "planning", "personal finance"],
-  authors: [{ name: "HoneyCart" }],
+  title:       "HoneyCart — Family Budget",
+  description: "Cute, minimal budgeting and grocery planning. Know your numbers, fill your cart.",
+  authors:     [{ name: "HoneyCart" }],
+  keywords:    ["budget", "grocery", "planning", "personal finance"],
   openGraph: {
-    title: "HoneyCart Budget",
+    title:       "HoneyCart Budget",
     description: "Cute, minimal budgeting and grocery planning.",
-    type: "website",
-  },
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "HoneyCart",
+    type:        "website",
   },
 };
 
 export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 1,
-  themeColor: "#FDF8F0",
+  themeColor:       "#FDF8F0",
+  width:            "device-width",
+  initialScale:     1,
+  maximumScale:     1,
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="en" className={inter.variable}>
-      <body className="min-h-screen bg-cream antialiased">
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${dmSans.variable} ${lora.variable}`}>
         {children}
-        <Toaster />
       </body>
     </html>
   );
