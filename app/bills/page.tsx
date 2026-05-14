@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Loader2, Trash2, Building2 } from "lucide-react";
+import { Loader2, Trash2, Building2, Receipt } from "lucide-react";
 import Link from "next/link";
 import { Navbar } from "@/components/layout/Navbar";
 import { ManualBillForm } from "@/components/forms/ManualBillForm";
@@ -28,17 +28,17 @@ const CADENCE_LABEL: Record<string, string> = {
 
 function monthlyAmount(amount: number, cadence: string): number {
   switch (cadence) {
-    case "weekly": return (amount * 52) / 12;
+    case "weekly":   return (amount * 52) / 12;
     case "biweekly": return (amount * 26) / 12;
     case "annually": return amount / 12;
-    default: return amount;
+    default:         return amount;
   }
 }
 
 function isDueSoon(dueDay: number | null): boolean {
   if (dueDay == null) return false;
-  const today = new Date().getDate();
-  return dueDay >= today && dueDay - today <= 7;
+  const diff = dueDay - new Date().getDate();
+  return diff >= 0 && diff <= 7;
 }
 
 function isOverdue(dueDay: number | null): boolean {
@@ -66,9 +66,7 @@ export default function BillsPage() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchBills();
-  }, [fetchBills]);
+  useEffect(() => { fetchBills(); }, [fetchBills]);
 
   async function handleDelete(id: string) {
     setDeletingId(id);
@@ -86,52 +84,60 @@ export default function BillsPage() {
     }
   }
 
-  const totalMonthly = bills.reduce(
-    (sum, b) => sum + monthlyAmount(b.amount, b.cadence),
-    0
-  );
+  const totalMonthly = bills.reduce((s, b) => s + monthlyAmount(b.amount, b.cadence), 0);
 
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="min-h-screen page-gradient">
       <Navbar />
       <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8 space-y-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Bills</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Track your recurring expenses and due dates.
-          </p>
+
+        {/* Header */}
+        <div className="animate-fade-up">
+          <p className="section-label mb-1">Expenses</p>
+          <h1 className="page-title">Bills</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Track your recurring expenses and due dates.</p>
         </div>
 
         {error && (
-          <div className="rounded-xl bg-blush-50 px-4 py-3 text-sm text-blush-700 ring-1 ring-blush-200">
+          <div className="rounded-2xl bg-blush-50 px-4 py-3 text-sm text-blush-700 ring-1 ring-blush-200 animate-slide-up">
             {error}
           </div>
         )}
 
-        {/* Summary */}
-        <Card className="border-blush-200 bg-gradient-to-r from-blush-50 to-white">
-          <CardContent className="flex items-center justify-between pt-5">
+        {/* Summary hero card */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blush-400 to-blush-600 p-5 text-white shadow-soft animate-fade-up delay-50">
+          <div className="absolute inset-0 opacity-10"
+            style={{ backgroundImage: "radial-gradient(circle at 90% 10%, white 0%, transparent 60%)" }}
+          />
+          <div className="relative flex items-center justify-between">
             <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Total monthly</p>
-              <p className="text-3xl font-bold tabular text-blush-800 mt-1">
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/70">
+                Total monthly
+              </p>
+              <p className="mt-2 text-4xl font-bold tabular text-white">
                 ${totalMonthly.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
               </p>
+              <p className="mt-1 text-sm text-white/60">
+                {bills.length} recurring bill{bills.length === 1 ? "" : "s"}
+              </p>
             </div>
-            <div className="text-right">
-              <p className="text-sm text-muted-foreground">{bills.length} bills</p>
+            <div className="flex flex-col items-end gap-2">
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm">
+                <Receipt className="h-6 w-6 text-white" />
+              </span>
               <Link href="/settings">
-                <Button variant="soft" size="sm" className="mt-2 gap-1.5">
+                <button className="flex items-center gap-1.5 rounded-xl bg-white/20 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/30 active:scale-[0.97]">
                   <Building2 className="h-3.5 w-3.5" />
                   Import from bank
-                </Button>
+                </button>
               </Link>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* Add form */}
-        <Card>
-          <CardHeader>
+        <Card className="animate-fade-up delay-100">
+          <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold text-blush-700">Add a bill</CardTitle>
           </CardHeader>
           <CardContent>
@@ -140,9 +146,16 @@ export default function BillsPage() {
         </Card>
 
         {/* Bills list */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-semibold">Your bills</CardTitle>
+        <Card className="animate-fade-up delay-150">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center justify-between text-sm font-semibold">
+              <span>Your bills</span>
+              {bills.length > 0 && (
+                <span className="rounded-full bg-blush-100 px-2.5 py-0.5 text-xs font-bold text-blush-700 ring-1 ring-blush-200">
+                  {bills.length}
+                </span>
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -150,75 +163,63 @@ export default function BillsPage() {
                 <Loader2 className="h-6 w-6 animate-spin text-blush-400" />
               </div>
             ) : bills.length === 0 ? (
-              <div className="py-10 text-center text-muted-foreground">
-                <p className="text-4xl">📋</p>
-                <p className="mt-2 font-medium">No bills yet</p>
-                <p className="text-sm">Add your first bill above.</p>
+              <div className="empty-state gap-3">
+                <span className="text-4xl">📋</span>
+                <div>
+                  <p className="font-semibold text-foreground">No bills yet</p>
+                  <p className="text-sm text-muted-foreground">Add your first bill above.</p>
+                </div>
               </div>
             ) : (
-              <ul className="space-y-1">
-                {bills.map((bill, i) => (
-                  <li key={bill.id}>
-                    {i > 0 && <Separator className="my-2" />}
-                    <div className="flex items-center gap-3 py-1">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-foreground truncate">
-                            {bill.name}
-                          </span>
-                          {bill.source === "plaid" && (
-                            <span className="rounded-full bg-lavender-100 px-2 py-0.5 text-xs text-lavender-700">
-                              bank
+              <ul className="space-y-0.5">
+                {bills.map((bill, i) => {
+                  const over = isOverdue(bill.dueDay);
+                  const soon = !over && isDueSoon(bill.dueDay);
+                  return (
+                    <li key={bill.id}>
+                      {i > 0 && <Separator className="my-1.5 bg-cream-100" />}
+                      <div className="group flex items-center gap-3 rounded-xl px-1 py-2 transition-colors hover:bg-cream-50">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="font-semibold text-foreground text-sm truncate">{bill.name}</span>
+                            {bill.source === "plaid" && (
+                              <span className="chip bg-lavender-50 text-lavender-700 ring-lavender-200">bank</span>
+                            )}
+                            {over && (
+                              <span className="chip bg-blush-50 text-blush-600 ring-blush-200">overdue</span>
+                            )}
+                            {soon && (
+                              <span className="chip bg-honey-50 text-honey-700 ring-honey-200">due soon</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {CADENCE_LABEL[bill.cadence] ?? bill.cadence}
+                            {bill.dueDay != null && ` · due the ${bill.dueDay}th`}
+                            {" · "}
+                            <span className={cn("font-semibold", over ? "text-blush-600" : "text-foreground")}>
+                              ${monthlyAmount(bill.amount, bill.cadence).toFixed(0)}/mo
                             </span>
-                          )}
-                          {isOverdue(bill.dueDay) && (
-                            <span className="rounded-full bg-blush-100 px-2 py-0.5 text-xs font-medium text-blush-600">
-                              overdue
-                            </span>
-                          )}
-                          {!isOverdue(bill.dueDay) && isDueSoon(bill.dueDay) && (
-                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-                              due soon
-                            </span>
-                          )}
+                          </p>
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          {CADENCE_LABEL[bill.cadence] ?? bill.cadence}
-                          {bill.dueDay && ` · due the ${bill.dueDay}th`}
-                          {" · "}
-                          <span className="text-blush-600 font-medium">
-                            ${monthlyAmount(bill.amount, bill.cadence).toFixed(2)}/mo
-                          </span>
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-foreground">
+                        <p className="font-bold tabular text-sm text-foreground whitespace-nowrap">
                           ${bill.amount.toFixed(2)}
                         </p>
-                        <p className="text-xs text-muted-foreground">
-                          {CADENCE_LABEL[bill.cadence]}
-                        </p>
+                        <button
+                          onClick={() => handleDelete(bill.id)}
+                          disabled={deletingId === bill.id}
+                          aria-label="Delete bill"
+                          className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl text-muted-foreground/40 opacity-0 transition-all group-hover:opacity-100 hover:bg-blush-50 hover:text-blush-500 disabled:opacity-30"
+                        >
+                          {deletingId === bill.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-3.5 w-3.5" />
+                          )}
+                        </button>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className={cn(
-                          "h-8 w-8 flex-shrink-0 text-muted-foreground hover:bg-blush-50 hover:text-blush-600",
-                          deletingId === bill.id && "opacity-50"
-                        )}
-                        onClick={() => handleDelete(bill.id)}
-                        disabled={deletingId === bill.id}
-                        aria-label="Delete bill"
-                      >
-                        {deletingId === bill.id ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-3.5 w-3.5" />
-                        )}
-                      </Button>
-                    </div>
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </CardContent>

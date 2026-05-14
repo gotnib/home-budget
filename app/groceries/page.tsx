@@ -9,6 +9,7 @@ import { GroceryCart } from "@/components/groceries/GroceryCart";
 import { WalmartExportButton } from "@/components/groceries/WalmartExportButton";
 import { ManualGroceryItemForm } from "@/components/forms/ManualGroceryItemForm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 interface GroceryItem {
   id: string;
@@ -25,34 +26,22 @@ export default function GroceriesPage() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchItems = useCallback(async () => {
-    try {
-      const res = await fetch("/api/groceries/cart");
-      const data = await res.json();
-      if (res.ok) setItems(data.items ?? []);
-    } catch {
-      setError("Failed to load grocery list.");
-    }
+    const res = await fetch("/api/groceries/cart");
+    const data = await res.json();
+    if (res.ok) setItems(data.items ?? []);
   }, []);
 
   const fetchBudget = useCallback(async () => {
-    try {
-      const res = await fetch("/api/budget");
-      const data = await res.json();
-      if (res.ok) setBudget(data.groceryBudget ?? 0);
-    } catch {
-      // budget not critical
-    }
+    const res = await fetch("/api/budget");
+    const data = await res.json();
+    if (res.ok) setBudget(data.groceryBudget ?? 0);
   }, []);
 
   useEffect(() => {
     Promise.all([fetchItems(), fetchBudget()]).finally(() => setIsLoading(false));
   }, [fetchItems, fetchBudget]);
 
-  async function handleAddItem(item: {
-    name: string;
-    quantity: number;
-    estimatedPrice: number;
-  }) {
+  async function handleAddItem(item: { name: string; quantity: number; estimatedPrice: number }) {
     const res = await fetch("/api/groceries/cart", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -69,9 +58,7 @@ export default function GroceriesPage() {
     });
     if (res.ok) {
       const json = await res.json();
-      setItems((prev) =>
-        prev.map((item) => (item.id === id ? { ...item, ...json.item } : item))
-      );
+      setItems((prev) => prev.map((item) => (item.id === id ? { ...item, ...json.item } : item)));
     }
   }
 
@@ -86,47 +73,45 @@ export default function GroceriesPage() {
 
   const plannedItems = items.filter((i) => i.status === "planned");
   const purchasedItems = items.filter((i) => i.status === "purchased");
-
-  const totalEstimated = items.reduce(
-    (sum, i) => sum + (i.estimatedPrice ?? 0) * i.quantity,
-    0
-  );
+  const totalEstimated = items.reduce((s, i) => s + (i.estimatedPrice ?? 0) * i.quantity, 0);
   const remaining = Math.max(0, budget - totalEstimated);
   const isOver = totalEstimated > budget && budget > 0;
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-cream">
+      <div className="min-h-screen page-gradient">
         <Navbar />
         <div className="flex items-center justify-center py-32">
-          <Loader2 className="h-8 w-8 animate-spin text-blush-400" />
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-honey-400" />
+            <p className="text-sm text-muted-foreground">Loading your list…</p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="min-h-screen page-gradient">
       <Navbar />
 
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         {/* Header */}
-        <div className="mb-6 flex items-start justify-between gap-4">
+        <div className="mb-6 flex items-start justify-between gap-4 animate-fade-up">
           <div>
-            <h1 className="text-2xl font-bold text-foreground sm:text-3xl">
-              Grocery List
-            </h1>
+            <p className="section-label mb-1">Grocery Planner</p>
+            <h1 className="page-title">Grocery List</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               Build your list, track your budget, export to Walmart.
             </p>
           </div>
-          <div className="hidden sm:block">
+          <div className="hidden sm:block animate-fade-in delay-200">
             <WalmartExportButton />
           </div>
         </div>
 
         {error && (
-          <div className="mb-4 rounded-xl bg-blush-50 px-4 py-3 text-sm text-blush-700 ring-1 ring-blush-200">
+          <div className="mb-4 rounded-2xl bg-blush-50 px-4 py-3 text-sm text-blush-700 ring-1 ring-blush-200 animate-slide-up">
             {error}
           </div>
         )}
@@ -134,11 +119,12 @@ export default function GroceriesPage() {
         <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
           {/* Main column */}
           <div className="space-y-4">
+
             {/* Search */}
-            <Card>
+            <Card className="animate-fade-up delay-100">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-semibold text-foreground">
-                  Search items
+                  🔍 Search items
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -147,10 +133,10 @@ export default function GroceriesPage() {
             </Card>
 
             {/* Manual add */}
-            <Card>
+            <Card className="animate-fade-up delay-150">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-semibold text-foreground">
-                  Add manually
+                  ✏️ Add manually
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -160,71 +146,71 @@ export default function GroceriesPage() {
 
             {/* Planned list */}
             {plannedItems.length > 0 ? (
-              <Card>
+              <Card className="animate-fade-up delay-200">
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center justify-between text-sm font-semibold">
-                    <span>To buy · {plannedItems.length}</span>
+                    <span>To buy</span>
+                    <span className="rounded-full bg-honey-100 px-2.5 py-0.5 text-xs font-bold text-honey-700 ring-1 ring-honey-200">
+                      {plannedItems.length}
+                    </span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <GroceryList
-                    items={plannedItems}
-                    onUpdate={handleUpdate}
-                    onDelete={handleDelete}
-                  />
+                  <GroceryList items={plannedItems} onUpdate={handleUpdate} onDelete={handleDelete} />
                 </CardContent>
               </Card>
             ) : (
-              <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-cream-300 bg-white/50 py-12 text-center">
-                <span className="text-4xl mb-3">🛒</span>
-                <p className="font-medium text-foreground">Your list is empty</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Search above or add items manually.
-                </p>
+              <div className="empty-state animate-fade-up delay-200 gap-3">
+                <span className="text-5xl">🛒</span>
+                <div>
+                  <p className="font-semibold text-foreground">Your list is empty</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Search above or add items manually.
+                  </p>
+                </div>
               </div>
             )}
 
             {/* Purchased */}
             {purchasedItems.length > 0 && (
-              <Card className="opacity-75">
+              <Card className="opacity-75 animate-fade-up delay-250">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-semibold text-muted-foreground">
-                    In cart · {purchasedItems.length}
+                  <CardTitle className="flex items-center justify-between text-sm font-semibold text-muted-foreground">
+                    <span>In cart</span>
+                    <span className="rounded-full bg-sage-100 px-2.5 py-0.5 text-xs font-bold text-sage-700 ring-1 ring-sage-200">
+                      {purchasedItems.length}
+                    </span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <GroceryList
-                    items={purchasedItems}
-                    onUpdate={handleUpdate}
-                    onDelete={handleDelete}
-                  />
+                  <GroceryList items={purchasedItems} onUpdate={handleUpdate} onDelete={handleDelete} />
                 </CardContent>
               </Card>
             )}
 
-            {/* Mobile export button */}
-            <div className="sm:hidden">
+            {/* Mobile export */}
+            <div className="sm:hidden animate-fade-up delay-300">
               <WalmartExportButton />
             </div>
           </div>
 
-          {/* Sidebar – hidden on mobile (see floating pill below) */}
-          <div className="hidden lg:block space-y-4">
+          {/* Desktop sidebar */}
+          <div className="hidden lg:block space-y-4 animate-fade-up delay-200">
             <GroceryCart items={items} budget={budget} />
           </div>
         </div>
       </main>
 
-      {/* Mobile floating cart summary pill */}
+      {/* Mobile floating cart pill */}
       {items.length > 0 && (
-        <div className="fixed bottom-[calc(56px+env(safe-area-inset-bottom)+8px)] left-1/2 -translate-x-1/2 z-40 lg:hidden">
+        <div className="fixed bottom-[calc(56px+env(safe-area-inset-bottom)+10px)] left-1/2 -translate-x-1/2 z-40 lg:hidden animate-slide-up">
           <div
-            className={[
-              "flex items-center gap-3 rounded-full px-5 py-3 shadow-lg ring-1 text-sm font-medium backdrop-blur-sm",
+            className={cn(
+              "flex items-center gap-3 rounded-full px-5 py-3 text-sm font-semibold shadow-soft-lg ring-1 backdrop-blur-md transition-all duration-300",
               isOver
-                ? "bg-blush-500/90 text-white ring-blush-400"
-                : "bg-white/90 text-foreground ring-cream-200",
-            ].join(" ")}
+                ? "bg-blush-500/92 text-white ring-blush-400"
+                : "bg-white/92 text-foreground ring-cream-200"
+            )}
           >
             <ShoppingBag className="h-4 w-4 flex-shrink-0" />
             <span>

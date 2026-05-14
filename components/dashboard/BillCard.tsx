@@ -12,14 +12,13 @@ interface BillCardProps {
   bills: Bill[];
 }
 
-function isDueSoon(dueDay: number | null | undefined): boolean {
+function isDueSoon(dueDay?: number | null) {
   if (dueDay == null) return false;
-  const today = new Date();
-  const diff = dueDay - today.getDate();
+  const diff = dueDay - new Date().getDate();
   return diff >= 0 && diff <= 7;
 }
 
-function isOverdue(dueDay: number | null | undefined): boolean {
+function isOverdue(dueDay?: number | null) {
   if (dueDay == null) return false;
   return dueDay < new Date().getDate();
 }
@@ -31,46 +30,51 @@ export function BillCard({ total, bills }: BillCardProps) {
     .slice(0, 3);
 
   return (
-    <div className="rounded-2xl bg-gradient-to-br from-blush-50 via-white to-blush-50/50 p-4 ring-1 ring-blush-200 shadow-sm">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-semibold uppercase tracking-wide text-blush-600">
-          Bills
-        </span>
-        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blush-100">
-          <Receipt className="h-4 w-4 text-blush-600" />
-        </span>
-      </div>
-      <p className="text-2xl font-bold tabular text-blush-900 leading-none">
-        ${total.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-      </p>
-      <p className="mt-1.5 text-xs text-muted-foreground mb-3">
-        {bills.length} recurring bill{bills.length === 1 ? "" : "s"}
-      </p>
-      {upcoming.length > 0 && (
-        <ul className="space-y-1.5">
-          {upcoming.map((bill, i) => {
-            const overdue = isOverdue(bill.dueDay);
-            const soon = !overdue && isDueSoon(bill.dueDay);
-            return (
-              <li key={i} className="flex items-center justify-between gap-2">
-                <span
-                  className={cn(
+    <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-blush-400 to-blush-600 p-5 text-white shadow-soft transition-all duration-300 hover:shadow-soft-lg hover:-translate-y-0.5">
+      <div className="absolute inset-0 opacity-10"
+        style={{ backgroundImage: "radial-gradient(circle at 80% 20%, white 0%, transparent 50%)" }}
+      />
+
+      <div className="relative">
+        <div className="flex items-start justify-between">
+          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/70">
+            Monthly Bills
+          </span>
+          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm transition-transform duration-300 group-hover:scale-110">
+            <Receipt className="h-4 w-4 text-white" strokeWidth={2} />
+          </span>
+        </div>
+
+        <p className="mt-3 text-3xl font-bold tabular leading-none text-white">
+          ${total.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+        </p>
+        <p className="mt-1.5 text-xs text-white/60 mb-3">
+          {bills.length} recurring bill{bills.length === 1 ? "" : "s"}
+        </p>
+
+        {upcoming.length > 0 && (
+          <ul className="space-y-1.5 border-t border-white/20 pt-3">
+            {upcoming.map((bill, i) => {
+              const over = isOverdue(bill.dueDay);
+              const soon = !over && isDueSoon(bill.dueDay);
+              return (
+                <li key={i} className="flex items-center justify-between gap-2">
+                  <span className={cn(
                     "text-xs font-medium truncate",
-                    overdue ? "text-blush-600" : soon ? "text-amber-600" : "text-foreground"
-                  )}
-                >
-                  {bill.name}
-                </span>
-                <span className="text-xs text-muted-foreground whitespace-nowrap">
-                  {overdue && <span className="text-blush-500 mr-1">!</span>}
-                  {soon && !overdue && <span className="text-amber-400 mr-1">·</span>}
-                  {bill.dueDay ? `due ${bill.dueDay}` : ""}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+                    over ? "text-white" : soon ? "text-white/90" : "text-white/70"
+                  )}>
+                    {over && <span className="mr-1">⚠</span>}
+                    {bill.name}
+                  </span>
+                  <span className="text-[10px] text-white/60 whitespace-nowrap">
+                    {bill.dueDay ? `due ${bill.dueDay}` : ""}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }

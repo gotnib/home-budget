@@ -1,115 +1,182 @@
-@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ─── CSS Variables ──────────────────────────────────────────── */
 @layer base {
   :root {
-    --background:        40 60% 98%;
-    --foreground:        30 25% 12%;
-    --card:              40 40% 99%;
-    --card-foreground:   30 25% 12%;
-    --popover:           40 40% 99%;
-    --popover-foreground:30 25% 12%;
-    --primary:           38 92% 51%;   /* honey-500 */
-    --primary-foreground:30 80% 15%;   /* bark-dark */
-    --secondary:         40 30% 94%;
-    --secondary-foreground:30 25% 25%;
-    --muted:             40 20% 92%;
-    --muted-foreground:  30 15% 46%;
-    --accent:            135 25% 60%;  /* sage */
-    --accent-foreground: 135 35% 15%;
-    --destructive:       0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
-    --border:            38 30% 88%;
-    --input:             38 30% 88%;
-    --ring:              38 92% 51%;
-    --radius:            0.75rem;
+    /* Warm honey/cream theme */
+    --background: 38 55% 97%;
+    --foreground: 28 25% 16%;
 
-    --font-dm-sans: 'DM Sans';
-    --font-lora:    'Lora';
-  }
+    --card: 0 0% 100%;
+    --card-foreground: 28 25% 16%;
 
-  .dark {
-    --background:        30 20% 8%;
-    --foreground:        40 30% 92%;
-    --card:              30 18% 11%;
-    --card-foreground:   40 30% 92%;
-    --popover:           30 18% 11%;
-    --popover-foreground:40 30% 92%;
-    --primary:           38 92% 51%;
-    --primary-foreground:30 80% 10%;
-    --secondary:         30 15% 16%;
-    --secondary-foreground:40 20% 75%;
-    --muted:             30 12% 18%;
-    --muted-foreground:  40 12% 58%;
-    --accent:            135 20% 35%;
-    --accent-foreground: 135 30% 85%;
-    --destructive:       0 62% 50%;
-    --destructive-foreground: 0 0% 100%;
-    --border:            30 15% 22%;
-    --input:             30 15% 22%;
-    --ring:              38 92% 51%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 28 25% 16%;
+
+    /* Primary = honey amber */
+    --primary: 33 76% 60%;
+    --primary-foreground: 33 80% 10%;
+
+    /* Secondary = sage green */
+    --secondary: 130 20% 60%;
+    --secondary-foreground: 130 30% 12%;
+
+    --muted: 38 30% 93%;
+    --muted-foreground: 28 15% 46%;
+
+    /* Accent = lavender */
+    --accent: 270 40% 82%;
+    --accent-foreground: 270 30% 16%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 38 25% 89%;
+    --input: 38 25% 89%;
+    --ring: 33 76% 60%;
+
+    --radius: 0.875rem;
   }
 }
 
-/* ─── Base Styles ────────────────────────────────────────────── */
 @layer base {
   * {
     @apply border-border;
   }
-  body {
-    @apply bg-background text-foreground font-sans antialiased;
-    background-image:
-      radial-gradient(ellipse 80% 60% at 50% -20%, hsl(38 92% 51% / 0.06) 0%, transparent 70%),
-      radial-gradient(ellipse 60% 40% at 80% 80%, hsl(135 25% 60% / 0.05) 0%, transparent 60%);
-    background-attachment: fixed;
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
   }
-  h1, h2, h3, h4 {
-    @apply font-serif;
+
+  body {
+    @apply bg-cream text-foreground antialiased;
+    background-color: #fdf8f0;
+    font-family: var(--font-inter), system-ui, sans-serif;
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  input, select, textarea {
+    font-size: 16px;
+  }
+
+  @media (min-width: 640px) {
+    input, select, textarea {
+      font-size: 14px;
+    }
   }
 }
 
-/* ─── Animation Utilities ────────────────────────────────────── */
+/* ── Animation stagger utilities ── */
 @layer utilities {
-  /* Stagger helpers — apply animation-delay via inline style or these classes */
-  .delay-75  { animation-delay: 75ms; }
+  .delay-0   { animation-delay: 0ms; }
+  .delay-50  { animation-delay: 50ms; }
   .delay-100 { animation-delay: 100ms; }
   .delay-150 { animation-delay: 150ms; }
   .delay-200 { animation-delay: 200ms; }
+  .delay-250 { animation-delay: 250ms; }
   .delay-300 { animation-delay: 300ms; }
   .delay-400 { animation-delay: 400ms; }
   .delay-500 { animation-delay: 500ms; }
 
-  /* Honey glow used on hero card */
-  .honey-glow {
-    box-shadow: 0 0 40px hsl(38 92% 51% / 0.18), 0 8px 32px hsl(38 92% 51% / 0.08);
+  /* Tabular numbers */
+  .tabular { font-variant-numeric: tabular-nums; }
+
+  /* Card hover lift */
+  .card-hover {
+    @apply transition-all duration-300 ease-spring;
+  }
+  .card-hover:hover {
+    @apply shadow-card-hover -translate-y-0.5;
   }
 
-  /* Subtle card hover lift */
-  .card-lift {
-    @apply transition-all duration-200 ease-out;
-  }
-  .card-lift:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 12px 28px hsl(38 92% 51% / 0.12), 0 4px 12px hsl(0 0% 0% / 0.06);
-  }
-
-  /* Progress bar fill animation */
-  .progress-animated {
-    animation: progress-fill 1s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  /* Shimmer loading skeleton */
+  .shimmer-bg {
+    background: linear-gradient(
+      90deg,
+      #f7edda 0%,
+      #fdf8f0 50%,
+      #f7edda 100%
+    );
+    background-size: 200% 100%;
+    @apply animate-shimmer;
   }
 
-  /* Number counter shimmer while counting */
-  .counting {
-    @apply opacity-80 tabular-nums;
+  /* Honey glow ring on focus */
+  .honey-focus:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(232, 164, 74, 0.35);
   }
 }
 
-/* ─── Scrollbar ──────────────────────────────────────────────── */
-::-webkit-scrollbar        { width: 6px; height: 6px; }
-::-webkit-scrollbar-track  { background: transparent; }
-::-webkit-scrollbar-thumb  { background: hsl(38 30% 80%); border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover { background: hsl(38 60% 65%); }
+/* ── Hero / page gradient backgrounds ── */
+@layer utilities {
+  .hero-gradient {
+    background:
+      radial-gradient(ellipse 80% 60% at 30% -5%, rgba(248, 209, 107, 0.18) 0%, transparent 55%),
+      radial-gradient(ellipse 60% 50% at 85% 90%, rgba(127, 182, 133, 0.12) 0%, transparent 55%),
+      radial-gradient(ellipse 50% 40% at 10% 80%, rgba(201, 184, 232, 0.10) 0%, transparent 55%),
+      #fdf8f0;
+  }
+
+  .page-gradient {
+    background:
+      radial-gradient(ellipse 60% 30% at 100% 0%, rgba(248, 209, 107, 0.08) 0%, transparent 50%),
+      #fdf8f0;
+  }
+}
+
+/* ── Component styles ── */
+@layer components {
+  /* Stat display number */
+  .stat-number {
+    @apply text-3xl font-bold tabular tracking-tight leading-none;
+  }
+
+  /* Section label */
+  .section-label {
+    @apply text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground;
+  }
+
+  /* Chip/pill tag */
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ring-1;
+  }
+
+  /* Honey primary button gradient */
+  .btn-honey {
+    background: linear-gradient(135deg, #f5b83a 0%, #e8a44a 60%, #cc8a2e 100%);
+    @apply text-white shadow-honey transition-all duration-200;
+  }
+  .btn-honey:hover {
+    background: linear-gradient(135deg, #f9cf6b 0%, #f5b83a 60%, #e8a44a 100%);
+    @apply shadow-honey-lg -translate-y-px;
+  }
+  .btn-honey:active {
+    @apply scale-[0.97] translate-y-0;
+  }
+
+  /* Page title */
+  .page-title {
+    @apply text-2xl font-bold tracking-tight sm:text-3xl;
+  }
+
+  /* Empty state container */
+  .empty-state {
+    @apply flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-cream-300 bg-white/50 py-12 text-center;
+  }
+}
+
+/* ── Scrollbar styling ── */
+@layer utilities {
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}

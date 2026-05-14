@@ -1,6 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { ShoppingBag } from "lucide-react";
+import { ShoppingBag, TrendingDown } from "lucide-react";
 
 interface GroceryCartProps {
   items: { quantity: number; estimatedPrice: number | null; status: string }[];
@@ -8,12 +6,8 @@ interface GroceryCartProps {
 }
 
 export function GroceryCart({ items, budget }: GroceryCartProps) {
-  const allItems = items;
-  const itemCount = allItems.reduce((sum, i) => sum + i.quantity, 0);
-  const total = allItems.reduce(
-    (sum, i) => sum + (i.estimatedPrice ?? 0) * i.quantity,
-    0
-  );
+  const itemCount = items.reduce((s, i) => s + i.quantity, 0);
+  const total = items.reduce((s, i) => s + (i.estimatedPrice ?? 0) * i.quantity, 0);
   const remaining = Math.max(0, budget - total);
   const pct = budget > 0 ? Math.min(100, (total / budget) * 100) : 0;
   const isOver = total > budget && budget > 0;
@@ -22,55 +16,67 @@ export function GroceryCart({ items, budget }: GroceryCartProps) {
     n.toLocaleString("en-US", { style: "currency", currency: "USD" });
 
   return (
-    <Card className="border-lavender-200 bg-gradient-to-b from-lavender-50 to-white">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base text-lavender-700">
-          <ShoppingBag className="h-5 w-5" />
-          Cart Summary
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-xl bg-white/70 p-3 text-center shadow-sm">
-            <p className="text-2xl font-bold text-lavender-800">{itemCount}</p>
-            <p className="text-xs text-muted-foreground">items</p>
+    <div className="rounded-2xl bg-gradient-to-b from-lavender-50 to-white p-5 ring-1 ring-lavender-200 shadow-card">
+      <div className="flex items-center gap-2 mb-4">
+        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-lavender-100">
+          <ShoppingBag className="h-4 w-4 text-lavender-600" />
+        </span>
+        <p className="font-semibold text-sm text-lavender-800">Cart Summary</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2.5 mb-4">
+        <div className="rounded-xl bg-white p-3 shadow-soft ring-1 ring-cream-200 text-center">
+          <p className="text-2xl font-bold tabular text-lavender-800">{itemCount}</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mt-0.5">items</p>
+        </div>
+        <div className="rounded-xl bg-white p-3 shadow-soft ring-1 ring-cream-200 text-center">
+          <p className="text-lg font-bold tabular text-foreground leading-tight">{fmt(total)}</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mt-0.5">est. total</p>
+        </div>
+      </div>
+
+      {budget > 0 && (
+        <div className="rounded-xl bg-white p-3.5 shadow-soft ring-1 ring-cream-200 space-y-2.5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-muted-foreground font-medium">Budget</span>
+            <span className="font-bold tabular text-foreground">{fmt(budget)}</span>
           </div>
-          <div className="rounded-xl bg-white/70 p-3 text-center shadow-sm">
-            <p className="text-2xl font-bold text-foreground">{fmt(total)}</p>
-            <p className="text-xs text-muted-foreground">estimated total</p>
+
+          <div className="h-2 w-full rounded-full bg-cream-200 overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-700 ease-spring"
+              style={{
+                width: `${pct}%`,
+                background: isOver
+                  ? "linear-gradient(to right, #ef7a9a, #f4a7b9)"
+                  : pct > 80
+                  ? "linear-gradient(to right, #f5b83a, #e8a44a)"
+                  : "linear-gradient(to right, #9acba0, #7fb685)",
+              }}
+            />
+          </div>
+
+          <div className="flex items-center justify-between text-xs">
+            <span className={`flex items-center gap-1 font-medium ${isOver ? "text-blush-600" : "text-muted-foreground"}`}>
+              {isOver ? "⚠ Over by" : (
+                <>
+                  <TrendingDown className="h-3 w-3 text-sage-500" />
+                  Remaining
+                </>
+              )}
+            </span>
+            <span className={`font-bold tabular ${isOver ? "text-blush-600" : "text-sage-700"}`}>
+              {isOver ? fmt(total - budget) : fmt(remaining)}
+            </span>
           </div>
         </div>
+      )}
 
-        {budget > 0 && (
-          <div className="space-y-2 rounded-xl bg-white/70 p-3 shadow-sm">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Budget</span>
-              <span className="font-medium">{fmt(budget)}</span>
-            </div>
-            <Progress
-              value={pct}
-              className="h-2"
-              indicatorClassName={
-                isOver ? "bg-blush-500" : pct > 80 ? "bg-amber-400" : "bg-lavender-400"
-              }
-            />
-            <div className="flex items-center justify-between text-sm">
-              <span className={isOver ? "font-medium text-blush-600" : "text-muted-foreground"}>
-                {isOver ? "Over by" : "Remaining"}
-              </span>
-              <span
-                className={
-                  isOver
-                    ? "font-semibold text-blush-600"
-                    : "font-semibold text-sage-700"
-                }
-              >
-                {isOver ? fmt(total - budget) : fmt(remaining)}
-              </span>
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      {items.length === 0 && (
+        <p className="text-center text-xs text-muted-foreground/60 py-2">
+          Add items to see your totals
+        </p>
+      )}
+    </div>
   );
 }

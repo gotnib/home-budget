@@ -3,24 +3,18 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  "inline-flex items-center rounded-full px-3 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
   {
     variants: {
       variant: {
         default:
-          "border-transparent bg-primary text-primary-foreground hover:bg-primary/80",
+          "border border-transparent bg-honey-100 text-honey-700 hover:bg-honey-200",
         secondary:
-          "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          "border border-transparent bg-sage-100 text-sage-700 hover:bg-sage-200",
         destructive:
-          "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
-        outline: "text-foreground",
-        blush:
-          "border-transparent bg-blush-100 text-blush-700 hover:bg-blush-200",
-        sage: "border-transparent bg-sage-100 text-sage-700 hover:bg-sage-200",
-        lavender:
-          "border-transparent bg-lavender-100 text-lavender-700 hover:bg-lavender-200",
-        cream:
-          "border-cream-200 bg-cream-100 text-foreground hover:bg-cream-200",
+          "border border-transparent bg-blush-100 text-blush-700 hover:bg-blush-200",
+        outline:
+          "border border-cream-300 bg-transparent text-foreground hover:bg-cream-100",
       },
     },
     defaultVariants: {
