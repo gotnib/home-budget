@@ -88,8 +88,9 @@ Return ONLY a JSON array in this exact format:
 
 Rules:
 - Include 10 to 20 items.
-- Use specific amount of people as a reference.
+- Use specific amount of people if mentioned as a reference.
 - Use realistic current US grocery prices.
+- Make the list cohesive and realistic.
 - Keep names short and clear.
 - estimatedPrice is price per unit.
 - quantity must be a number.
