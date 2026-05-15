@@ -6,48 +6,45 @@ interface BudgetSummaryProps {
 }
 
 export function BudgetSummary({ monthlyIncome, fixedBills, groceryBudget, groceryPercent }: BudgetSummaryProps) {
-  const billsPct = monthlyIncome > 0 ? Math.min(100, (fixedBills / monthlyIncome) * 100) : 0;
-  const groceryPct = monthlyIncome > 0 ? Math.min(100, (groceryBudget / monthlyIncome) * 100) : 0;
+  const billsPct    = monthlyIncome > 0 ? Math.min(100, (fixedBills    / monthlyIncome) * 100) : 0;
+  const groceryPct  = monthlyIncome > 0 ? Math.min(100, (groceryBudget / monthlyIncome) * 100) : 0;
   const flexRemaining = Math.max(0, monthlyIncome - fixedBills - groceryBudget);
-  const fmt = (n: number) =>
-    "$" + n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-
-  const bars = [
-    { label: "Bills", pct: billsPct, color: "bg-blush-400", value: fmt(fixedBills), textColor: "text-blush-700" },
-    { label: `Groceries (${groceryPercent}%)`, pct: groceryPct, color: "bg-lavender-400", value: fmt(groceryBudget), textColor: "text-lavender-700" },
-  ];
+  const fmt = (n: number) => "$" + n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
   return (
-    <div className="h-full rounded-2xl bg-white p-5 shadow-card ring-1 ring-cream-200 flex flex-col justify-between">
+    <div className="overview-card">
       <div>
-        <div className="flex items-center justify-between mb-4">
+        <div className="overview-head">
           <p className="section-label">Overview</p>
-          <span className="text-xs font-bold tabular text-sage-700 bg-sage-50 px-2 py-0.5 rounded-full ring-1 ring-sage-200">
-            {fmt(monthlyIncome)} /mo
-          </span>
+          <span className="overview-income-badge">{fmt(monthlyIncome)} /mo</span>
         </div>
 
-        <div className="space-y-3.5">
-          {bars.map(({ label, pct, color, value, textColor }) => (
-            <div key={label}>
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs text-muted-foreground font-medium">{label}</span>
-                <span className={`text-xs font-bold tabular ${textColor}`}>{value}</span>
-              </div>
-              <div className="h-1.5 w-full rounded-full bg-cream-200 overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-700 ease-spring ${color}`}
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
+        <div className="overview-bar-row">
+          <div className="overview-bar-item">
+            <div className="overview-bar-labels">
+              <span className="overview-bar-name">Bills</span>
+              <span className="overview-bar-val-blush">{fmt(fixedBills)}</span>
             </div>
-          ))}
+            <div className="progress-track">
+              <div className="progress-fill progress-fill--blush" style={{ width: `${billsPct}%` }} />
+            </div>
+          </div>
+
+          <div className="overview-bar-item">
+            <div className="overview-bar-labels">
+              <span className="overview-bar-name">Groceries ({groceryPercent}%)</span>
+              <span className="overview-bar-val-lavender">{fmt(groceryBudget)}</span>
+            </div>
+            <div className="progress-track">
+              <div className="progress-fill progress-fill--lavender" style={{ width: `${groceryPct}%` }} />
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-between rounded-xl bg-sage-50 px-3 py-2.5 ring-1 ring-sage-100">
-        <span className="text-xs font-medium text-sage-700">Flexible left</span>
-        <span className="text-sm font-bold tabular text-sage-800">{fmt(flexRemaining)}</span>
+      <div className="overview-flex-row">
+        <span className="overview-flex-label">Flexible left</span>
+        <span className="overview-flex-val">{fmt(flexRemaining)}</span>
       </div>
     </div>
   );

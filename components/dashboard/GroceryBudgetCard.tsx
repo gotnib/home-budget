@@ -11,47 +11,36 @@ export function GroceryBudgetCard({ budget, spent }: GroceryBudgetCardProps) {
   const isOver = spent > budget && budget > 0;
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-lavender-400 to-lavender-600 p-5 text-white shadow-soft transition-all duration-300 hover:shadow-soft-lg hover:-translate-y-0.5">
-      <div className="absolute inset-0 opacity-10"
-        style={{ backgroundImage: "radial-gradient(circle at 80% 20%, white 0%, transparent 50%)" }}
-      />
-
-      <div className="relative">
-        <div className="flex items-start justify-between">
-          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/70">
-            Grocery Budget
-          </span>
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm transition-transform duration-300 group-hover:scale-110">
-            <ShoppingCart className="h-4 w-4 text-white" strokeWidth={2} />
+    <div className="stat-hero stat-hero--lavender">
+      <div className="stat-hero-content">
+        <div className="stat-hero-row">
+          <span className="stat-hero-label">Grocery Budget</span>
+          <span className="stat-hero-icon">
+            <ShoppingCart style={{ width: "1rem", height: "1rem", color: "white" }} strokeWidth={2} />
           </span>
         </div>
-
-        <p className="mt-3 text-3xl font-bold tabular leading-none text-white">
+        <p className="stat-hero-value">
           ${remaining.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
         </p>
-        <p className="mt-1.5 text-xs text-white/60">
+        <p className="stat-hero-sub">
           {isOver ? (
-            <span className="text-white font-semibold">over budget!</span>
+            <strong style={{ color: "white" }}>over budget!</strong>
           ) : (
             `of $${budget.toLocaleString("en-US", { minimumFractionDigits: 0 })} remaining`
           )}
         </p>
-
-        {/* Animated progress bar */}
-        <div className="mt-4 h-1.5 w-full overflow-hidden rounded-full bg-white/25">
+        <div style={{ marginTop: "1rem", height: "0.375rem", width: "100%", overflow: "hidden", borderRadius: "9999px", background: "rgba(255,255,255,0.25)" }}>
           <div
-            className="h-full rounded-full transition-all duration-700 ease-spring"
             style={{
+              height: "100%",
+              borderRadius: "9999px",
               width: `${pct}%`,
-              background: isOver
-                ? "rgba(255,255,255,0.9)"
-                : pct > 80
-                ? "rgba(255,255,255,0.75)"
-                : "rgba(255,255,255,0.6)",
+              transition: "width 0.7s cubic-bezier(0.16,1,0.3,1)",
+              background: isOver ? "rgba(255,255,255,0.9)" : pct > 80 ? "rgba(255,255,255,0.75)" : "rgba(255,255,255,0.6)",
             }}
           />
         </div>
-        <p className="mt-1 text-[10px] text-white/50">{pct.toFixed(0)}% used</p>
+        <p style={{ marginTop: "0.25rem", fontSize: "10px", color: "rgba(255,255,255,0.5)" }}>{pct.toFixed(0)}% used</p>
       </div>
     </div>
   );

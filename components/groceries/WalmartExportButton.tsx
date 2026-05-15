@@ -2,13 +2,7 @@
 
 import { useState } from "react";
 import { ExternalLink, ShoppingBag, Loader2, CheckCircle2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface ExportResult {
   items: { name: string; quantity: number; price: number }[];
@@ -24,88 +18,74 @@ export function WalmartExportButton() {
   const [error, setError] = useState<string | null>(null);
 
   async function handleExport() {
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true); setError(null);
     try {
       const res = await fetch("/api/groceries/export");
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Export failed");
-      setResult(data);
-      setOpen(true);
+      setResult(data); setOpen(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
-      setIsLoading(false);
-    }
+    } finally { setIsLoading(false); }
   }
 
   return (
     <>
-      <Button
-        onClick={handleExport}
-        disabled={isLoading}
-        className="bg-[#0071CE] text-white hover:bg-[#005FAE] shadow-soft gap-2 disabled:opacity-70"
-      >
-        {isLoading ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <ShoppingBag className="h-4 w-4" />
-        )}
+      <button onClick={handleExport} disabled={isLoading} className="walmart-btn">
+        {isLoading
+          ? <Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} />
+          : <ShoppingBag style={{ width: "1rem", height: "1rem" }} />
+        }
         Export to Walmart
-      </Button>
+      </button>
 
-      {error && (
-        <p className="mt-2 text-sm text-blush-600 animate-slide-up">{error}</p>
-      )}
+      {error && <p style={{ marginTop: "0.5rem", fontSize: "0.875rem", color: "var(--blush-600)" }} className="animate-slide-up">{error}</p>}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md rounded-3xl border-cream-200 p-0 overflow-hidden shadow-soft-lg animate-scale-in">
-          {/* Coloured header band */}
-          <div className="bg-gradient-to-r from-[#0071CE] to-[#004F99] px-6 py-5 text-white">
+        <DialogContent>
+          {/* Walmart header */}
+          <div style={{ background: "linear-gradient(to right, #0071CE, #004F99)", padding: "1.25rem 1.5rem", color: "white" }}>
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2.5 text-white text-lg">
-                <CheckCircle2 className="h-5 w-5 text-white/80" />
+              <DialogTitle style={{ display: "flex", alignItems: "center", gap: "0.625rem", color: "white" }}>
+                <CheckCircle2 style={{ width: "1.25rem", height: "1.25rem", opacity: 0.8 }} />
                 Ready to checkout!
               </DialogTitle>
             </DialogHeader>
             {result && (
-              <p className="mt-1 text-sm text-white/70 leading-relaxed">
+              <p style={{ marginTop: "0.25rem", fontSize: "0.875rem", color: "rgba(255,255,255,0.7)", lineHeight: "1.5" }}>
                 {result.message}
               </p>
             )}
           </div>
 
           {result && (
-            <div className="p-6 space-y-4">
-              {/* Item list */}
-              <div className="rounded-2xl bg-cream-50 ring-1 ring-cream-200 overflow-hidden">
-                <ul className="divide-y divide-cream-200">
+            <div style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+              <div style={{ borderRadius: "1rem", background: "var(--cream-100)", border: "1px solid var(--cream-200)", overflow: "hidden" }}>
+                <ul>
                   {result.items.slice(0, 6).map((item, i) => (
-                    <li key={i} className="flex items-center justify-between px-4 py-2.5 text-sm">
-                      <span className="text-foreground">
+                    <li key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.625rem 1rem", fontSize: "0.875rem", borderTop: i > 0 ? "1px solid var(--cream-200)" : "none" }}>
+                      <span style={{ color: "var(--color-fg)" }}>
                         {item.name}
                         {item.quantity > 1 && (
-                          <span className="ml-1.5 rounded-full bg-cream-200 px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
+                          <span style={{ marginLeft: "0.375rem", borderRadius: "9999px", background: "var(--cream-200)", padding: "0.125rem 0.375rem", fontSize: "10px", fontWeight: 700, color: "var(--color-muted)" }}>
                             ×{item.quantity}
                           </span>
                         )}
                       </span>
-                      <span className="font-semibold tabular text-foreground">
+                      <span style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums", color: "var(--color-fg)" }}>
                         ${(item.price * item.quantity).toFixed(2)}
                       </span>
                     </li>
                   ))}
                   {result.items.length > 6 && (
-                    <li className="px-4 py-2 text-xs text-muted-foreground text-center">
+                    <li style={{ padding: "0.5rem 1rem", fontSize: "0.75rem", color: "var(--color-muted)", textAlign: "center", borderTop: "1px solid var(--cream-200)" }}>
                       +{result.items.length - 6} more items
                     </li>
                   )}
                 </ul>
-                <div className="flex items-center justify-between px-4 py-3 bg-cream-100 border-t border-cream-200">
-                  <span className="text-sm font-semibold text-foreground">Estimated total</span>
-                  <span className="font-bold tabular text-sage-700">
-                    ${result.total.toFixed(2)}
-                  </span>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.75rem 1rem", background: "var(--cream-200)", borderTop: "1px solid var(--cream-200)" }}>
+                  <span style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--color-fg)" }}>Estimated total</span>
+                  <span style={{ fontWeight: 700, fontVariantNumeric: "tabular-nums", color: "var(--sage-700)" }}>${result.total.toFixed(2)}</span>
                 </div>
               </div>
 
@@ -113,10 +93,16 @@ export function WalmartExportButton() {
                 href={result.checkoutUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#0071CE] px-4 py-3.5 font-semibold text-white transition-all duration-200 hover:bg-[#005FAE] hover:-translate-y-px hover:shadow-soft active:scale-[0.97]"
+                style={{
+                  display: "flex", width: "100%", alignItems: "center", justifyContent: "center", gap: "0.5rem",
+                  borderRadius: "1rem", background: "#0071CE", padding: "0.875rem 1rem",
+                  fontWeight: 600, color: "white", transition: "all 0.2s", textDecoration: "none",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "#005FAE"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "#0071CE"; e.currentTarget.style.transform = "none"; }}
               >
                 Open Walmart
-                <ExternalLink className="h-4 w-4" />
+                <ExternalLink style={{ width: "1rem", height: "1rem" }} />
               </a>
             </div>
           )}

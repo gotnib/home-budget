@@ -4,17 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Navbar } from "@/components/layout/Navbar";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { ConnectBankButton } from "@/components/plaid/ConnectBankButton";
 import { Building2, Check, Loader2, LogOut, RefreshCw } from "lucide-react";
 
@@ -48,44 +37,23 @@ export default function SettingsPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/"); return; }
       setUserEmail(user.email ?? null);
-
-      const [itemsRes, budgetRes] = await Promise.all([
-        fetch("/api/plaid/items"),
-        fetch("/api/budget"),
-      ]);
-
-      if (itemsRes.ok) {
-        const items = await itemsRes.json();
-        setPlaidItems(Array.isArray(items) ? items : []);
-      }
-      if (budgetRes.ok) {
-        const budget = await budgetRes.json();
-        setSettings({
-          groceryPercent: budget.groceryPercent ?? 25,
-          savingsGoal: budget.savingsGoal ?? 0,
-        });
-      }
-    } catch {
-      setError("Failed to load settings.");
-    } finally {
-      setLoading(false);
-    }
+      const [itemsRes, budgetRes] = await Promise.all([fetch("/api/plaid/items"), fetch("/api/budget")]);
+      if (itemsRes.ok) { const items = await itemsRes.json(); setPlaidItems(Array.isArray(items) ? items : []); }
+      if (budgetRes.ok) { const budget = await budgetRes.json(); setSettings({ groceryPercent: budget.groceryPercent ?? 25, savingsGoal: budget.savingsGoal ?? 0 }); }
+    } catch { setError("Failed to load settings."); }
+    finally { setLoading(false); }
   }, [supabase, router]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   async function handleSignOut() {
     setSigningOut(true);
     await supabase.auth.signOut();
-    router.push("/");
-    router.refresh();
+    router.push("/"); router.refresh();
   }
 
   async function handleSyncTransactions() {
-    setIsSyncing(true);
-    setError(null);
+    setIsSyncing(true); setError(null);
     try {
       const [syncRes] = await Promise.all([
         fetch("/api/plaid/sync-transactions", { method: "POST" }),
@@ -93,17 +61,12 @@ export default function SettingsPage() {
       ]);
       const data = await syncRes.json();
       alert(`Synced ${data.synced ?? 0} transactions!`);
-    } catch {
-      setError("Sync failed. Please try again.");
-    } finally {
-      setIsSyncing(false);
-    }
+    } catch { setError("Sync failed. Please try again."); }
+    finally { setIsSyncing(false); }
   }
 
   async function handleSaveSettings() {
-    setIsSaving(true);
-    setSaveSuccess(false);
-    setError(null);
+    setIsSaving(true); setSaveSuccess(false); setError(null);
     try {
       const res = await fetch("/api/budget", {
         method: "POST",
@@ -113,97 +76,69 @@ export default function SettingsPage() {
       if (!res.ok) throw new Error("Save failed");
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
-    } catch {
-      setError("Failed to save settings.");
-    } finally {
-      setIsSaving(false);
-    }
+    } catch { setError("Failed to save settings."); }
+    finally { setIsSaving(false); }
   }
 
   return (
-    <div className="min-h-screen bg-cream">
+    <div className="app-layout">
       <Navbar userEmail={userEmail ?? undefined} />
-      <main className="mx-auto max-w-2xl px-4 py-8 sm:px-6 space-y-6">
+      <main className="page-container--sm">
+
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Settings</h1>
-          <p className="mt-1 text-muted-foreground">
+          <h1 className="page-title">Settings</h1>
+          <p style={{ marginTop: "0.25rem", color: "var(--color-muted)", fontSize: "0.875rem" }}>
             Manage your account, bank connections, and budget preferences.
           </p>
         </div>
 
-        {error && (
-          <div className="rounded-xl bg-blush-50 px-4 py-3 text-sm text-blush-700 ring-1 ring-blush-200">
-            {error}
-          </div>
-        )}
+        {error && <div className="alert alert--error">{error}</div>}
 
         {/* Account */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Account</CardTitle>
-            <CardDescription>
-              {userEmail ?? "Loading..."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-              variant="outline"
-              onClick={handleSignOut}
-              disabled={signingOut}
-              className="gap-2 text-muted-foreground"
-            >
-              {signingOut ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <LogOut className="h-4 w-4" />
-              )}
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-title">Account</h3>
+            <p className="card-description">{userEmail ?? "Loading..."}</p>
+          </div>
+          <div className="card-body">
+            <button onClick={handleSignOut} disabled={signingOut} className="btn btn--outline" style={{ gap: "0.5rem", color: "var(--color-muted)" }}>
+              {signingOut
+                ? <Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} />
+                : <LogOut style={{ width: "1rem", height: "1rem" }} />
+              }
               Sign out
-            </Button>
-          </CardContent>
-        </Card>
+            </button>
+          </div>
+        </div>
 
         {/* Bank connections */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Bank connections</CardTitle>
-            <CardDescription>
-              Connected accounts automatically import income and recurring bills via Plaid.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-title">Bank connections</h3>
+            <p className="card-description">Connected accounts automatically import income and recurring bills via Plaid.</p>
+          </div>
+          <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             {loading ? (
-              <div className="flex justify-center py-6">
-                <Loader2 className="h-6 w-6 animate-spin text-lavender-400" />
+              <div className="loading-center" style={{ padding: "1.5rem 0" }}>
+                <Loader2 style={{ width: "1.5rem", height: "1.5rem", color: "var(--lavender-400)", animation: "spin 1s linear infinite" }} />
               </div>
             ) : plaidItems.length === 0 ? (
-              <div className="flex flex-col items-center py-8 text-center text-muted-foreground rounded-xl border-2 border-dashed border-cream-300">
-                <Building2 className="h-10 w-10 opacity-30 mb-3" />
-                <p className="font-medium">No banks connected yet</p>
-                <p className="text-sm mt-1">
-                  Connect a bank account to auto-import transactions.
-                </p>
+              <div className="settings-bank-empty">
+                <Building2 style={{ width: "2.5rem", height: "2.5rem", opacity: 0.3, marginBottom: "0.75rem" }} />
+                <p style={{ fontWeight: 500 }}>No banks connected yet</p>
+                <p style={{ fontSize: "0.875rem", marginTop: "0.25rem" }}>Connect a bank account to auto-import transactions.</p>
               </div>
             ) : (
-              <ul className="space-y-2">
+              <ul style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                 {plaidItems.map((item) => (
-                  <li
-                    key={item.id}
-                    className="flex items-center gap-3 rounded-xl bg-cream-100 px-4 py-3"
-                  >
-                    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-lavender-100">
-                      <Building2 className="h-5 w-5 text-lavender-600" />
+                  <li key={item.id} className="settings-bank-item">
+                    <span className="icon-pill icon-pill--lavender icon-pill--md">
+                      <Building2 style={{ width: "1.25rem", height: "1.25rem" }} />
                     </span>
                     <div>
-                      <p className="font-medium text-foreground">
-                        {item.institutionName ?? "Bank account"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Connected{" "}
-                        {new Date(item.createdAt).toLocaleDateString("en-US", {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                        })}
+                      <p style={{ fontWeight: 500, color: "var(--color-fg)" }}>{item.institutionName ?? "Bank account"}</p>
+                      <p style={{ fontSize: "0.75rem", color: "var(--color-muted)" }}>
+                        Connected {new Date(item.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
                       </p>
                     </div>
                   </li>
@@ -211,97 +146,68 @@ export default function SettingsPage() {
               </ul>
             )}
 
-            <div className="flex flex-wrap gap-2">
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
               <ConnectBankButton onSuccess={fetchData} />
               {plaidItems.length > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSyncTransactions}
-                  disabled={isSyncing}
-                  className="gap-2"
-                >
-                  {isSyncing ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-3.5 w-3.5" />
-                  )}
+                <button onClick={handleSyncTransactions} disabled={isSyncing} className="btn btn--outline btn--sm" style={{ gap: "0.5rem" }}>
+                  {isSyncing
+                    ? <Loader2 style={{ width: "0.875rem", height: "0.875rem", animation: "spin 1s linear infinite" }} />
+                    : <RefreshCw style={{ width: "0.875rem", height: "0.875rem" }} />
+                  }
                   Sync Transactions
-                </Button>
+                </button>
               )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* Budget preferences */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Budget Preferences</CardTitle>
-            <CardDescription>
-              Adjust how your grocery budget is calculated.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="pct-slider">
-                Grocery % of flexible budget
-              </Label>
-              <div className="flex items-center gap-3">
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-title">Budget Preferences</h3>
+            <p className="card-description">Adjust how your grocery budget is calculated.</p>
+          </div>
+          <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+            <div className="form-field">
+              <label className="form-label" htmlFor="pct-slider">Grocery % of flexible budget</label>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                 <input
-                  id="pct-slider"
-                  type="range"
-                  min={0}
-                  max={100}
-                  step={1}
+                  id="pct-slider" type="range" min={0} max={100} step={1}
                   value={settings.groceryPercent}
-                  onChange={(e) =>
-                    setSettings((s) => ({ ...s, groceryPercent: parseInt(e.target.value, 10) }))
-                  }
-                  className="flex-1 accent-blush-400"
+                  onChange={(e) => setSettings((s) => ({ ...s, groceryPercent: parseInt(e.target.value, 10) }))}
+                  className="form-range" style={{ flex: 1 }}
                 />
-                <span className="w-12 text-right font-bold text-blush-700">
+                <span style={{ width: "3rem", textAlign: "right", fontWeight: 700, color: "var(--blush-700)" }}>
                   {settings.groceryPercent}%
                 </span>
               </div>
             </div>
 
-            <Separator />
+            <hr className="separator" />
 
-            <div className="space-y-1.5">
-              <Label htmlFor="savings-goal">Monthly savings goal ($)</Label>
-              <Input
-                id="savings-goal"
-                type="number"
-                min="0"
-                step="10"
+            <div className="form-field">
+              <label className="form-label" htmlFor="savings-goal">Monthly savings goal ($)</label>
+              <input
+                id="savings-goal" type="number" min="0" step="10"
                 value={settings.savingsGoal}
-                onChange={(e) =>
-                  setSettings((s) => ({
-                    ...s,
-                    savingsGoal: Math.max(0, parseFloat(e.target.value) || 0),
-                  }))
-                }
-                className="w-40"
+                onChange={(e) => setSettings((s) => ({ ...s, savingsGoal: Math.max(0, parseFloat(e.target.value) || 0) }))}
+                className="form-input form-input--narrow2"
               />
             </div>
 
             {saveSuccess && (
-              <div className="flex items-center gap-2 rounded-xl bg-sage-50 px-4 py-3 text-sm text-sage-700 ring-1 ring-sage-200">
-                <Check className="h-4 w-4" />
+              <div className="alert alert--success" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <Check style={{ width: "1rem", height: "1rem" }} />
                 Preferences saved!
               </div>
             )}
 
-            <Button
-              onClick={handleSaveSettings}
-              disabled={isSaving}
-              className="gap-2 bg-blush-400 text-white hover:bg-blush-500"
-            >
-              {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+            <button onClick={handleSaveSettings} disabled={isSaving} className="btn btn--soft" style={{ gap: "0.5rem", alignSelf: "flex-start" }}>
+              {isSaving && <Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} />}
               Save Preferences
-            </Button>
-          </CardContent>
-        </Card>
+            </button>
+          </div>
+        </div>
       </main>
     </div>
   );
