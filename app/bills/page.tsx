@@ -312,9 +312,10 @@ export default function BillsPage() {
 
   function handleTogglePaid(id: string) {
     const next = !paidIds.has(id);
-    // Optimistic update — instant feedback
     setPaidIds((prev) => { const s = new Set(prev); next ? s.add(id) : s.delete(id); return s; });
-    // Persist to DB so all devices see the change
+    // Also update the bills array so paidAt reflects the new state immediately
+    // (prevents polling from resetting the display before the PATCH completes)
+    setBills((prev) => prev.map((b) => b.id === id ? { ...b, paidAt: next ? new Date().toISOString() : null } : b));
     fetch("/api/bills", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -514,10 +515,16 @@ export default function BillsPage() {
                             </div>
 
                             {/* Specific due date */}
-                            {dueLabelStr && (
+                            {(dueLabelStr || (paid && bill.dueDay != null && bill.cadence === "monthly")) && (
                               <p style={{ marginTop: "0.2rem", fontSize: "0.8125rem", color: over ? "var(--blush-600)" : soon ? "var(--honey-700)" : paid ? "var(--sage-600)" : "var(--color-muted)", fontWeight: 500 }}>
                                 {paid
-                                  ? `Paid · was due ${dueLabelStr}`
+                                  ? (() => {
+                                      // Always compute this month's date independently for paid bills
+                                      const m = today.getMonth();
+                                      const daysInM = new Date(today.getFullYear(), m + 1, 0).getDate();
+                                      const d = bill.dueDay != null ? Math.min(bill.dueDay, daysInM) : null;
+                                      return d != null ? `Paid · was due ${SHORT_MONTHS[m]} ${d}` : `Paid`;
+                                    })()
                                   : over
                                     ? `Overdue · was due ${dueLabelStr}${daysAgo != null ? ` (${daysAgo}d ago)` : ""}`
                                     : daysUntil === 0
