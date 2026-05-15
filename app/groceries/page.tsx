@@ -5,10 +5,11 @@ import {
   Loader2, Plus, Trash2, CheckCircle2, Circle,
   Sparkles, Receipt, ChevronDown, ChevronUp,
   Users, Baby, Calendar, ArrowRight, RotateCcw,
-  UtensilsCrossed, Store, DollarSign, Bookmark, X,
+  UtensilsCrossed, Store, DollarSign, Bookmark, X, BookOpen,
 } from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
 import type { MealPlan, MealWeek } from "@/app/api/groceries/meal-plan/route";
+import type { RecipeData } from "@/app/api/groceries/recipe/route";
 
 interface GroceryItem {
   id: string;
@@ -61,7 +62,7 @@ function Counter({ value, onChange, min = 0, max = 10 }: { value: number; onChan
   );
 }
 
-function MealWeekCard({ week }: { week: MealWeek }) {
+function MealWeekCard({ week, onMealClick }: { week: MealWeek; onMealClick?: (meal: string) => void }) {
   const [open, setOpen] = useState(week.week === 1);
   return (
     <div style={{ border: "1px solid var(--cream-200)", borderRadius: "0.875rem", overflow: "hidden" }}>
@@ -82,10 +83,22 @@ function MealWeekCard({ week }: { week: MealWeek }) {
             <div key={day.day} style={{ padding: "0.625rem 1rem", borderTop: "1px solid var(--cream-200)", background: i % 2 === 0 ? "white" : "var(--honey-50)" }}>
               <p style={{ fontWeight: 700, fontSize: "0.75rem", color: "var(--honey-700)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.375rem" }}>{day.day}</p>
               <div style={{ display: "grid", gap: "0.25rem" }}>
-                {[["🌅", day.breakfast], ["☀️", day.lunch], ["🌙", day.dinner]].map(([emoji, meal]) => (
-                  <p key={emoji} style={{ fontSize: "0.8125rem", color: "var(--color-fg)" }}>
-                    <span style={{ marginRight: "0.375rem" }}>{emoji}</span>{meal}
-                  </p>
+                {([["🌅", day.breakfast], ["☀️", day.lunch], ["🌙", day.dinner]] as [string, string][]).map(([emoji, meal]) => (
+                  <div key={emoji} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <p style={{ fontSize: "0.8125rem", color: "var(--color-fg)" }}>
+                      <span style={{ marginRight: "0.375rem" }}>{emoji}</span>{meal}
+                    </p>
+                    {onMealClick && (
+                      <button
+                        type="button"
+                        onClick={() => onMealClick(meal)}
+                        className="meal-recipe-btn"
+                        title="Get recipe"
+                      >
+                        <BookOpen style={{ width: "0.75rem", height: "0.75rem" }} />
+                      </button>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>
@@ -134,6 +147,14 @@ export default function GroceriesPage() {
   const [receiptAmount, setReceiptAmount] = useState("");
   const [receiptLogging, setReceiptLogging] = useState(false);
   const [showPurchased, setShowPurchased] = useState(false);
+
+  // Recipe modal
+  const [recipeTarget, setRecipeTarget] = useState<string | null>(null);
+  const [recipe, setRecipe] = useState<RecipeData | null>(null);
+  const [recipeLoading, setRecipeLoading] = useState(false);
+  const [recipeError, setRecipeError] = useState<string | null>(null);
+  const [recipeAddingIngredients, setRecipeAddingIngredients] = useState(false);
+  const recipeCache = useRef<Map<string, RecipeData>>(new Map());
 
   const nameRef = useRef<HTMLInputElement>(null);
 
@@ -358,6 +379,55 @@ export default function GroceriesPage() {
     setReceiptLogging(false);
   }
 
+  async function handleMealClick(meal: string) {
+    setRecipeTarget(meal);
+    setRecipeError(null);
+    const cached = recipeCache.current.get(meal);
+    if (cached) { setRecipe(cached); return; }
+    setRecipe(null);
+    setRecipeLoading(true);
+    try {
+      const res = await fetch("/api/groceries/recipe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ meal, servings: aiAdults + Math.ceil(aiKids * 0.5) || 2 }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to load recipe");
+      recipeCache.current.set(meal, data.recipe);
+      setRecipe(data.recipe);
+    } catch (err) {
+      setRecipeError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setRecipeLoading(false);
+    }
+  }
+
+  async function handleAddRecipeIngredients() {
+    if (!recipe) return;
+    setRecipeAddingIngredients(true);
+    try {
+      await fetch("/api/groceries/cart/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: recipe.ingredients.map((ing) => ({
+            name: `${ing.item}`,
+            quantity: 1,
+            estimatedPrice: null,
+          })),
+        }),
+      });
+      await fetchItems();
+      setRecipeTarget(null);
+      setRecipe(null);
+    } catch {
+      // silently ignore
+    } finally {
+      setRecipeAddingIngredients(false);
+    }
+  }
+
   const planned   = items.filter((i) => i.status === "planned");
   const purchased = items.filter((i) => i.status === "purchased");
   const totalPlanned   = planned.reduce((s, i) => s + (i.estimatedPrice ?? 0) * i.quantity, 0);
@@ -435,7 +505,7 @@ export default function GroceriesPage() {
             {savedMealPlanOpen && (
               <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                 {savedMealPlan.weeks.map((week) => (
-                  <MealWeekCard key={week.week} week={week} />
+                  <MealWeekCard key={week.week} week={week} onMealClick={handleMealClick} />
                 ))}
                 <div style={{ display: "flex", gap: "0.5rem", paddingTop: "0.25rem" }}>
                   <button type="button" onClick={handleUseSavedMealPlan} className="btn btn--honey" style={{ flex: 1, gap: "0.5rem", fontSize: "0.875rem" }}>
@@ -635,7 +705,7 @@ export default function GroceriesPage() {
 
               <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                 {mealPlan.weeks.map((week) => (
-                  <MealWeekCard key={week.week} week={week} />
+                  <MealWeekCard key={week.week} week={week} onMealClick={handleMealClick} />
                 ))}
               </div>
 
@@ -1010,6 +1080,92 @@ export default function GroceriesPage() {
         )}
 
       </main>
+
+      {/* Recipe Modal */}
+      {recipeTarget && (
+        <div className="ai-modal-backdrop" onClick={() => { setRecipeTarget(null); setRecipe(null); setRecipeError(null); }}>
+          <div className="ai-modal recipe-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="ai-modal-header">
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <BookOpen style={{ width: "1.125rem", height: "1.125rem", color: "var(--honey-500)" }} />
+                <h2 style={{ fontWeight: 700, fontSize: "1.0625rem", color: "var(--color-fg)" }}>
+                  {recipe ? recipe.title : recipeTarget}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setRecipeTarget(null); setRecipe(null); setRecipeError(null); }}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-muted)", padding: "0.25rem", display: "flex" }}
+              >
+                <X style={{ width: "1.25rem", height: "1.25rem" }} />
+              </button>
+            </div>
+
+            <div className="ai-modal-body">
+              {recipeLoading && (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem", padding: "2rem 0" }}>
+                  <Loader2 style={{ width: "1.5rem", height: "1.5rem", color: "var(--honey-400)", animation: "spin 1s linear infinite" }} />
+                  <p style={{ fontSize: "0.875rem", color: "var(--color-muted)" }}>Honey is fetching the recipe…</p>
+                </div>
+              )}
+
+              {recipeError && (
+                <div role="alert" className="alert alert--error">{recipeError}</div>
+              )}
+
+              {recipe && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+                  <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                    <span className="recipe-meta-chip">⏱ Prep: {recipe.prepTime}</span>
+                    <span className="recipe-meta-chip">🍳 Cook: {recipe.cookTime}</span>
+                  </div>
+
+                  <div>
+                    <p style={{ fontWeight: 700, fontSize: "0.875rem", color: "var(--color-fg)", marginBottom: "0.5rem" }}>Ingredients</p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+                      {recipe.ingredients.map((ing, i) => (
+                        <div key={i} className="recipe-ingredient-row">
+                          <span className="recipe-ingredient-amount">{ing.amount}</span>
+                          <span style={{ fontSize: "0.875rem", color: "var(--color-fg)" }}>{ing.item}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p style={{ fontWeight: 700, fontSize: "0.875rem", color: "var(--color-fg)", marginBottom: "0.5rem" }}>Steps</p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+                      {recipe.steps.map((step, i) => (
+                        <div key={i} className="recipe-step-row">
+                          <span className="recipe-step-num">{i + 1}</span>
+                          <p style={{ fontSize: "0.875rem", color: "var(--color-fg)", lineHeight: 1.5 }}>{step}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {recipe && (
+              <div className="ai-modal-footer">
+                <button
+                  type="button"
+                  onClick={handleAddRecipeIngredients}
+                  disabled={recipeAddingIngredients}
+                  className="btn btn--honey"
+                  style={{ flex: 1, gap: "0.5rem", fontSize: "0.875rem" }}
+                >
+                  {recipeAddingIngredients
+                    ? <><Loader2 style={{ width: "0.875rem", height: "0.875rem", animation: "spin 1s linear infinite" }} /> Adding…</>
+                    : <><Plus style={{ width: "0.875rem", height: "0.875rem" }} /> Add ingredients to list</>
+                  }
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
