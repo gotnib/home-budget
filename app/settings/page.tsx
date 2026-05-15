@@ -7,7 +7,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { ConnectBankButton } from "@/components/plaid/ConnectBankButton";
 import { Building2, Check, Home, Loader2, LogOut, RefreshCw } from "lucide-react";
 
-const LS_DISPLAY_NAME = "honey-display-name";
+const LS_DISPLAY_NAME = "honey-display-name"; // kept as a fast client-side cache
 
 interface PlaidItem {
   id: string;
@@ -41,22 +41,25 @@ export default function SettingsPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/"); return; }
       setUserEmail(user.email ?? null);
-      const [itemsRes, budgetRes] = await Promise.all([fetch("/api/plaid/items"), fetch("/api/budget")]);
+      const [itemsRes, budgetRes, settingsRes] = await Promise.all([fetch("/api/plaid/items"), fetch("/api/budget"), fetch("/api/user-settings")]);
       if (itemsRes.ok) { const items = await itemsRes.json(); setPlaidItems(Array.isArray(items) ? items : []); }
       if (budgetRes.ok) { const budget = await budgetRes.json(); setSettings({ groceryPercent: budget.groceryPercent ?? 25, savingsGoal: budget.savingsGoal ?? 0 }); }
+      if (settingsRes.ok) { const s = await settingsRes.json(); setDisplayName(s.displayName ?? localStorage.getItem(LS_DISPLAY_NAME) ?? ""); }
     } catch { setError("Failed to load settings."); }
     finally { setLoading(false); }
   }, [supabase, router]);
 
-  useEffect(() => {
-    fetchData();
-    try {
-      setDisplayName(localStorage.getItem(LS_DISPLAY_NAME) ?? "");
-    } catch { /* ignore */ }
-  }, [fetchData]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   function handleSaveDisplayName() {
     const name = displayName.trim();
+    // Write to DB (source of truth)
+    fetch("/api/user-settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ displayName: name || null }),
+    });
+    // Also update localStorage cache so Navbar picks it up instantly
     try {
       if (name) {
         localStorage.setItem(LS_DISPLAY_NAME, name);

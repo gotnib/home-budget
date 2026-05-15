@@ -40,18 +40,20 @@ function perPeriod(monthlyAmount: number, period: PayPeriod): number {
 const fmt      = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD" });
 const fmtShort = (n: number) => "$" + n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
-function PaycheckCard({ monthlyIncome, savingsGoal, groceryBudget, bills }: {
-  monthlyIncome: number; savingsGoal: number; groceryBudget: number; bills: Bill[];
+function PaycheckCard({ monthlyIncome, savingsGoal, groceryBudget, bills, initialPeriod }: {
+  monthlyIncome: number; savingsGoal: number; groceryBudget: number; bills: Bill[]; initialPeriod: PayPeriod;
 }) {
-  const [period, setPeriod] = useState<PayPeriod>(() => {
-    try { return (localStorage.getItem("pay-period") as PayPeriod) ?? "biweekly"; } catch { return "biweekly"; }
-  });
+  const [period, setPeriod] = useState<PayPeriod>(initialPeriod);
   const [selectedBillIds, setSelectedBillIds] = useState<Set<string>>(new Set());
   const [billPickerOpen, setBillPickerOpen] = useState(true);
 
   function selectPeriod(p: PayPeriod) {
     setPeriod(p);
-    try { localStorage.setItem("pay-period", p); } catch { /* ignore */ }
+    fetch("/api/user-settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ payPeriod: p }),
+    });
   }
 
   function toggleBill(id: string) {
@@ -263,22 +265,26 @@ export default function BudgetPage() {
   const [groceryPercent, setGroceryPercent] = useState(25);
   const [savingsGoal, setSavingsGoal] = useState(0);
   const [savingsGoalInput, setSavingsGoalInput] = useState("0");
+  const [payPeriod, setPayPeriod] = useState<PayPeriod>("biweekly");
 
   const fetchBudget = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [budgetRes, billsRes] = await Promise.all([
+      const [budgetRes, billsRes, settingsRes] = await Promise.all([
         fetch("/api/budget"),
         fetch("/api/bills"),
+        fetch("/api/user-settings"),
       ]);
-      const budgetJson = await budgetRes.json();
-      const billsJson  = await billsRes.json();
+      const budgetJson   = await budgetRes.json();
+      const billsJson    = await billsRes.json();
+      const settingsJson = settingsRes.ok ? await settingsRes.json() : {};
       if (!budgetRes.ok) throw new Error(budgetJson.error);
       setData(budgetJson);
       setGroceryPercent(budgetJson.groceryPercent);
       setSavingsGoal(budgetJson.savingsGoal);
       setSavingsGoalInput(String(budgetJson.savingsGoal));
       if (billsRes.ok) setBills(billsJson.bills ?? []);
+      if (settingsJson.payPeriod) setPayPeriod(settingsJson.payPeriod as PayPeriod);
     } catch { setError("Failed to load budget data."); }
     finally { setIsLoading(false); }
   }, []);
@@ -359,6 +365,7 @@ export default function BudgetPage() {
           savingsGoal={savingsGoal}
           groceryBudget={groceryBudget}
           bills={bills}
+          initialPeriod={payPeriod}
         />
 
         {/* Fixed bills */}

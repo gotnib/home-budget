@@ -23,10 +23,10 @@ export function Navbar({ userEmail }: NavbarProps) {
   const router = useRouter();
   const supabase = createClient();
   useEffect(() => {
-    try {
-      const name = localStorage.getItem("honey-display-name");
-      if (name) {
+    function applyName(name: string) {
+      try {
         document.title = name;
+        localStorage.setItem("honey-display-name", name);
         const meta = document.querySelector('meta[name="apple-mobile-web-app-title"]');
         if (meta) meta.setAttribute("content", name);
         else {
@@ -35,8 +35,28 @@ export function Navbar({ userEmail }: NavbarProps) {
           m.setAttribute("content", name);
           document.head.appendChild(m);
         }
-      }
+      } catch { /* ignore */ }
+    }
+
+    try {
+      const cached = localStorage.getItem("honey-display-name");
+      if (cached) { applyName(cached); return; }
     } catch { /* ignore */ }
+
+    // No cache — fetch from DB
+    fetch("/api/user-settings")
+      .then((r) => r.ok ? r.json() : null)
+      .then((s) => { if (s?.displayName) applyName(s.displayName); })
+      .catch(() => { /* ignore */ });
+
+    const handler = () => {
+      try {
+        const name = localStorage.getItem("honey-display-name");
+        if (name) applyName(name);
+      } catch { /* ignore */ }
+    };
+    window.addEventListener("honey-name-changed", handler);
+    return () => window.removeEventListener("honey-name-changed", handler);
   }, []);
 
   async function handleSignOut() {

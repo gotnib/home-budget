@@ -85,11 +85,18 @@ model GroceryItem {
 }
 
 model BudgetSettings {
-  id             String   @id @default(cuid())
-  userId         String   @unique
-  groceryPercent Float    @default(25)
-  savingsGoal    Float    @default(0)
-  updatedAt      DateTime @updatedAt
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  groceryPercent   Float    @default(25)
+  savingsGoal      Float    @default(0)
+  displayName      String?
+  payPeriod        String   @default("biweekly")
+  householdAdults  Int      @default(2)
+  householdKids    Int      @default(0)
+  preferredStore   String   @default("")
+  savedMealPlan    Json?
+  savedLists       Json?
+  updatedAt        DateTime @updatedAt
 
   user UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

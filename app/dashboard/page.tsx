@@ -65,7 +65,7 @@ export default async function DashboardPage() {
                 Cozy honey budget
               </div>
 
-              <DashboardGreeting fallbackName={userName} />
+              <DashboardGreeting displayName={budgetSettings?.displayName ?? null} fallbackName={userName} />
               <p className="dash-hero-sub">
                 A warm snapshot of what is coming in, what is already spoken for, and how much honey is still flexible this month.
               </p>

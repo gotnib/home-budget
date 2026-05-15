@@ -96,9 +96,6 @@ function MealWeekCard({ week }: { week: MealWeek }) {
   );
 }
 
-const LS_MEAL_PLAN  = "honey-meal-plan";
-const LS_SAVED_LISTS = "honey-saved-lists";
-
 export default function GroceriesPage() {
   const [items, setItems] = useState<GroceryItem[]>([]);
   const [budget, setBudget] = useState(0);
@@ -153,13 +150,20 @@ export default function GroceriesPage() {
   }, []);
 
   useEffect(() => {
-    Promise.all([fetchItems(), fetchBudget()]).finally(() => setIsLoading(false));
-    try {
-      const raw = localStorage.getItem(LS_MEAL_PLAN);
-      if (raw) setSavedMealPlan(JSON.parse(raw));
-      const listsRaw = localStorage.getItem(LS_SAVED_LISTS);
-      if (listsRaw) setSavedLists(JSON.parse(listsRaw));
-    } catch { /* ignore */ }
+    async function init() {
+      await Promise.all([fetchItems(), fetchBudget()]);
+      const res = await fetch("/api/user-settings");
+      if (res.ok) {
+        const s = await res.json();
+        setAiAdults(s.householdAdults ?? 2);
+        setAiKids(s.householdKids ?? 0);
+        setAiStore(s.preferredStore ?? "");
+        if (s.savedMealPlan) setSavedMealPlan(s.savedMealPlan);
+        if (Array.isArray(s.savedLists) && s.savedLists.length > 0) setSavedLists(s.savedLists);
+      }
+      setIsLoading(false);
+    }
+    init();
   }, [fetchItems, fetchBudget]);
 
   async function handleAddItem(e: React.FormEvent) {
@@ -203,6 +207,12 @@ export default function GroceriesPage() {
   async function handleBuildMealPlan() {
     setAiError(null);
     setAiStep("loading-plan");
+    // Save household prefs so they persist for next time
+    fetch("/api/user-settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ householdAdults: aiAdults, householdKids: aiKids, preferredStore: aiStore }),
+    });
     try {
       const res = await fetch("/api/groceries/meal-plan", {
         method: "POST",
@@ -213,11 +223,12 @@ export default function GroceriesPage() {
       if (!res.ok) throw new Error(data.error ?? "Failed");
       setMealPlan(data.mealPlan);
       setAiStep("meal-plan");
-      // Persist the meal plan
-      try {
-        localStorage.setItem(LS_MEAL_PLAN, JSON.stringify(data.mealPlan));
-        setSavedMealPlan(data.mealPlan);
-      } catch { /* ignore */ }
+      setSavedMealPlan(data.mealPlan);
+      fetch("/api/user-settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ savedMealPlan: data.mealPlan }),
+      });
     } catch (err) {
       setAiError(err instanceof Error ? err.message : "Something went wrong");
       setAiStep("configure");
@@ -255,23 +266,25 @@ export default function GroceriesPage() {
       body: JSON.stringify({ items: toAdd }),
     });
     // Auto-save this list for reuse
-    try {
-      const listName = [
-        mealPlan ? `${mealPlan.totalDays} days` : null,
-        mealPlan?.store || null,
-        new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-      ].filter(Boolean).join(" · ");
-      const newList: SavedList = {
-        id: Date.now().toString(),
-        name: listName,
-        store: mealPlan?.store ?? "",
-        createdAt: new Date().toISOString(),
-        items: toAdd,
-      };
-      const updated = [newList, ...savedLists].slice(0, 10);
-      setSavedLists(updated);
-      localStorage.setItem(LS_SAVED_LISTS, JSON.stringify(updated));
-    } catch { /* ignore */ }
+    const listName = [
+      mealPlan ? `${mealPlan.totalDays} days` : null,
+      mealPlan?.store || null,
+      new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    ].filter(Boolean).join(" · ");
+    const newList: SavedList = {
+      id: Date.now().toString(),
+      name: listName,
+      store: mealPlan?.store ?? "",
+      createdAt: new Date().toISOString(),
+      items: toAdd,
+    };
+    const updatedLists = [newList, ...savedLists].slice(0, 10);
+    setSavedLists(updatedLists);
+    fetch("/api/user-settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ savedLists: updatedLists }),
+    });
 
     await fetchItems();
     setAiStep("configure");
@@ -293,8 +306,12 @@ export default function GroceriesPage() {
   }
 
   function removeSavedMealPlan() {
-    try { localStorage.removeItem(LS_MEAL_PLAN); } catch { /* ignore */ }
     setSavedMealPlan(null);
+    fetch("/api/user-settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ savedMealPlan: null }),
+    });
   }
 
   function handleUseSavedMealPlan() {
@@ -318,7 +335,11 @@ export default function GroceriesPage() {
   function handleDeleteSavedList(id: string) {
     const updated = savedLists.filter((l) => l.id !== id);
     setSavedLists(updated);
-    try { localStorage.setItem(LS_SAVED_LISTS, JSON.stringify(updated)); } catch { /* ignore */ }
+    fetch("/api/user-settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ savedLists: updated }),
+    });
   }
 
   async function handleReceipt(e: React.FormEvent) {
