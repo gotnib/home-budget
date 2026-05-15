@@ -8,14 +8,8 @@ import { BudgetSummary } from "@/components/dashboard/BudgetSummary";
 import { IncomeCard } from "@/components/dashboard/IncomeCard";
 import { BillCard } from "@/components/dashboard/BillCard";
 import { GroceryBudgetCard } from "@/components/dashboard/GroceryBudgetCard";
+import { DashboardGreeting } from "@/components/dashboard/DashboardGreeting";
 import { Building2, ChevronRight, PiggyBank, Sparkles } from "lucide-react";
-
-function getGreeting() {
-  const h = new Date().getHours();
-  if (h < 12) return "Good morning";
-  if (h < 17) return "Good afternoon";
-  return "Good evening";
-}
 
 export default async function DashboardPage() {
   const supabase = createClient();
@@ -71,10 +65,7 @@ export default async function DashboardPage() {
                 Cozy honey budget
               </div>
 
-              <p className="dash-hero-greeting" style={{ marginTop: "0.75rem" }}>{getGreeting()}</p>
-              <h1 className="dash-hero-title">
-                {userName ? `${userName}'s` : "Your"} money hive is buzzing 🐝
-              </h1>
+              <DashboardGreeting fallbackName={userName} />
               <p className="dash-hero-sub">
                 A warm snapshot of what is coming in, what is already spoken for, and how much honey is still flexible this month.
               </p>
