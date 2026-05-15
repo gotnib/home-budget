@@ -11,6 +11,11 @@ export const metadata: Metadata = {
     description: "Cute, minimal budgeting and grocery planning.",
     type: "website",
   },
+  appleWebApp: {
+    capable: true,
+    title: "HoneyCart",
+    statusBarStyle: "default",
+  },
 };
 
 export const viewport: Viewport = {
