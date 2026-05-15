@@ -181,26 +181,23 @@ export default function GroceriesPage() {
     nameRef.current?.focus();
   }
 
-  async function handleCheck(item: GroceryItem) {
+  function handleCheck(item: GroceryItem) {
     const newStatus = item.status === "planned" ? "purchased" : "planned";
-    const res = await fetch("/api/groceries/cart", {
+    setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, status: newStatus } : i));
+    fetch("/api/groceries/cart", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: item.id, status: newStatus }),
     });
-    if (res.ok) {
-      const json = await res.json();
-      setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, ...json.item } : i)));
-    }
   }
 
-  async function handleDelete(id: string) {
-    await fetch("/api/groceries/cart", {
+  function handleDelete(id: string) {
+    setItems((prev) => prev.filter((i) => i.id !== id));
+    fetch("/api/groceries/cart", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id }),
     });
-    setItems((prev) => prev.filter((i) => i.id !== id));
   }
 
   async function handleBuildMealPlan() {
@@ -252,13 +249,11 @@ export default function GroceriesPage() {
     const toAdd = aiSuggestions.filter((_, i) => aiSelected.has(i));
     if (!toAdd.length) return;
     setAiAdding(true);
-    for (const item of toAdd) {
-      await fetch("/api/groceries/cart", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(item),
-      });
-    }
+    await fetch("/api/groceries/cart/bulk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items: toAdd }),
+    });
     // Auto-save this list for reuse
     try {
       const listName = [
@@ -311,13 +306,11 @@ export default function GroceriesPage() {
 
   async function handleLoadSavedList(list: SavedList) {
     setLoadingListId(list.id);
-    for (const item of list.items) {
-      await fetch("/api/groceries/cart", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(item),
-      });
-    }
+    await fetch("/api/groceries/cart/bulk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items: list.items }),
+    });
     await fetchItems();
     setLoadingListId(null);
   }

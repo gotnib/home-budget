@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Navbar } from "@/components/layout/Navbar";
 import { ConnectBankButton } from "@/components/plaid/ConnectBankButton";
-import { Building2, Check, Loader2, LogOut, RefreshCw } from "lucide-react";
+import { Building2, Check, Home, Loader2, LogOut, RefreshCw } from "lucide-react";
+
+const LS_DISPLAY_NAME = "honey-display-name";
 
 interface PlaidItem {
   id: string;
@@ -28,6 +30,8 @@ export default function SettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState("");
+  const [displayNameSaved, setDisplayNameSaved] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
@@ -44,7 +48,35 @@ export default function SettingsPage() {
     finally { setLoading(false); }
   }, [supabase, router]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+    try {
+      setDisplayName(localStorage.getItem(LS_DISPLAY_NAME) ?? "");
+    } catch { /* ignore */ }
+  }, [fetchData]);
+
+  function handleSaveDisplayName() {
+    const name = displayName.trim();
+    try {
+      if (name) {
+        localStorage.setItem(LS_DISPLAY_NAME, name);
+        document.title = name;
+        const meta = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+        if (meta) meta.setAttribute("content", name);
+        else {
+          const m = document.createElement("meta");
+          m.setAttribute("name", "apple-mobile-web-app-title");
+          m.setAttribute("content", name);
+          document.head.appendChild(m);
+        }
+      } else {
+        localStorage.removeItem(LS_DISPLAY_NAME);
+        document.title = "HoneyCart";
+      }
+    } catch { /* ignore */ }
+    setDisplayNameSaved(true);
+    setTimeout(() => setDisplayNameSaved(false), 2500);
+  }
 
   async function handleSignOut() {
     setSigningOut(true);
@@ -158,6 +190,44 @@ export default function SettingsPage() {
                 </button>
               )}
             </div>
+          </div>
+        </div>
+
+        {/* Home Screen name */}
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-title">Home Screen name</h3>
+            <p className="card-description">
+              The label shown under the icon when you add HoneyCart to your phone&apos;s Home Screen. Leave blank to use &quot;HoneyCart&quot;.
+            </p>
+          </div>
+          <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+            <div className="form-field">
+              <label className="form-label" htmlFor="display-name">
+                <Home style={{ width: "0.875rem", height: "0.875rem", display: "inline", marginRight: "0.375rem", verticalAlign: "middle" }} />
+                Display name
+              </label>
+              <input
+                id="display-name"
+                type="text"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSaveDisplayName()}
+                placeholder="e.g. Smith Family Budget"
+                className="form-input form-input--narrow2"
+                maxLength={30}
+              />
+            </div>
+            {displayNameSaved && (
+              <div className="alert alert--success" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <Check style={{ width: "1rem", height: "1rem" }} />
+                Name saved! Re-add to Home Screen to see the new label.
+              </div>
+            )}
+            <button onClick={handleSaveDisplayName} className="btn btn--soft" style={{ gap: "0.5rem", alignSelf: "flex-start" }}>
+              <Check style={{ width: "1rem", height: "1rem" }} />
+              Save name
+            </button>
           </div>
         </div>
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LayoutDashboard, DollarSign, Receipt, ShoppingCart, Settings, LogOut, Wallet } from "lucide-react";
@@ -21,6 +22,23 @@ export function Navbar({ userEmail }: NavbarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+
+  useEffect(() => {
+    try {
+      const name = localStorage.getItem("honey-display-name");
+      if (name) {
+        document.title = name;
+        const meta = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+        if (meta) meta.setAttribute("content", name);
+        else {
+          const m = document.createElement("meta");
+          m.setAttribute("name", "apple-mobile-web-app-title");
+          m.setAttribute("content", name);
+          document.head.appendChild(m);
+        }
+      }
+    } catch { /* ignore */ }
+  }, []);
 
   async function handleSignOut() {
     await supabase.auth.signOut();
