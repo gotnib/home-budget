@@ -43,6 +43,7 @@ export default function SettingsPage() {
   const [householdLoading, setHouseholdLoading] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
+  const [householdError, setHouseholdError] = useState<string | null>(null);
   const router = useRouter();
   const supabase = createClient();
 
@@ -123,11 +124,16 @@ export default function SettingsPage() {
 
   async function handleCreateHousehold() {
     setHouseholdLoading(true);
+    setHouseholdError(null);
     try {
       const res = await fetch("/api/household", { method: "POST" });
-      if (res.ok) { const d = await res.json(); setHousehold(d.household); setHouseholdRole("queen"); }
-    } catch { /* ignore */ }
-    finally { setHouseholdLoading(false); }
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error ?? "Failed to create household");
+      setHousehold(d.household);
+      setHouseholdRole("queen");
+    } catch (err) {
+      setHouseholdError(err instanceof Error ? err.message : "Something went wrong");
+    } finally { setHouseholdLoading(false); }
   }
 
   async function handleRefreshCodes() {
@@ -410,6 +416,11 @@ export default function SettingsPage() {
               /* No household yet */
               <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", alignItems: "flex-start" }}>
                 <p style={{ fontSize: "0.875rem", color: "var(--color-muted)" }}>Create a household to invite your partner or family members.</p>
+                {householdError && (
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.625rem 0.875rem", background: "var(--blush-50)", borderRadius: "0.625rem", border: "1px solid var(--blush-200)", width: "100%" }}>
+                    <p style={{ fontSize: "0.8125rem", color: "var(--blush-700)" }}>{householdError}</p>
+                  </div>
+                )}
                 <button onClick={handleCreateHousehold} disabled={householdLoading} className="btn btn--soft" style={{ gap: "0.5rem" }}>
                   {householdLoading ? <Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} /> : <><Crown style={{ width: "1rem", height: "1rem" }} /> Create household</>}
                 </button>
