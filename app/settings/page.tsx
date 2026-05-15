@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Navbar } from "@/components/layout/Navbar";
 import { ConnectBankButton } from "@/components/plaid/ConnectBankButton";
-import { Building2, Check, Home, Loader2, LogOut, RefreshCw } from "lucide-react";
+import { Building2, Check, Home, Loader2, LogOut, RefreshCw, Link2, Copy, Trash2, Users } from "lucide-react";
 
 const LS_DISPLAY_NAME = "honey-display-name"; // kept as a fast client-side cache
 
@@ -32,6 +32,9 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [displayNameSaved, setDisplayNameSaved] = useState(false);
+  const [shareToken, setShareToken] = useState<string | null>(null);
+  const [shareLoading, setShareLoading] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
@@ -44,7 +47,13 @@ export default function SettingsPage() {
       const [itemsRes, budgetRes, settingsRes] = await Promise.all([fetch("/api/plaid/items"), fetch("/api/budget"), fetch("/api/user-settings")]);
       if (itemsRes.ok) { const items = await itemsRes.json(); setPlaidItems(Array.isArray(items) ? items : []); }
       if (budgetRes.ok) { const budget = await budgetRes.json(); setSettings({ groceryPercent: budget.groceryPercent ?? 25, savingsGoal: budget.savingsGoal ?? 0 }); }
-      if (settingsRes.ok) { const s = await settingsRes.json(); setDisplayName(s.displayName ?? localStorage.getItem(LS_DISPLAY_NAME) ?? ""); }
+      if (settingsRes.ok) {
+        const s = await settingsRes.json();
+        setDisplayName(s.displayName ?? localStorage.getItem(LS_DISPLAY_NAME) ?? "");
+      }
+      // Load share token
+      const shareRes = await fetch("/api/household/share");
+      if (shareRes.ok) { const sd = await shareRes.json(); setShareToken(sd.token ?? null); }
     } catch { setError("Failed to load settings."); }
     finally { setLoading(false); }
   }, [supabase, router]);
@@ -99,6 +108,33 @@ export default function SettingsPage() {
       alert(`Synced ${data.synced ?? 0} transactions!`);
     } catch { setError("Sync failed. Please try again."); }
     finally { setIsSyncing(false); }
+  }
+
+  async function handleGenerateShareLink() {
+    setShareLoading(true);
+    try {
+      const res = await fetch("/api/household/share");
+      if (res.ok) { const d = await res.json(); setShareToken(d.token); }
+    } catch { /* ignore */ }
+    finally { setShareLoading(false); }
+  }
+
+  async function handleRevokeShareLink() {
+    setShareLoading(true);
+    try {
+      await fetch("/api/household/share", { method: "DELETE" });
+      setShareToken(null);
+    } catch { /* ignore */ }
+    finally { setShareLoading(false); }
+  }
+
+  function handleCopyShareLink() {
+    if (!shareToken) return;
+    const url = `${window.location.origin}/household/${shareToken}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
+    });
   }
 
   async function handleSaveSettings() {
@@ -232,6 +268,50 @@ export default function SettingsPage() {
               <Check style={{ width: "1rem", height: "1rem" }} />
               Save name
             </button>
+          </div>
+        </div>
+
+        {/* Household share */}
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-title">Share with household</h3>
+            <p className="card-description">
+              Generate a read-only link so your partner or family can view your budget snapshot — no account needed.
+            </p>
+          </div>
+          <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+            {shareToken ? (
+              <>
+                <div style={{ background: "var(--cream-100)", borderRadius: "0.75rem", padding: "0.75rem 1rem", border: "1px solid var(--cream-300)", wordBreak: "break-all" }}>
+                  <p style={{ fontSize: "0.8125rem", color: "var(--color-muted)", marginBottom: "0.25rem", fontWeight: 600 }}>Share link</p>
+                  <p style={{ fontSize: "0.8125rem", color: "var(--color-fg)", fontFamily: "monospace" }}>
+                    {typeof window !== "undefined" ? `${window.location.origin}/household/${shareToken}` : `/household/${shareToken}`}
+                  </p>
+                </div>
+                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                  <button onClick={handleCopyShareLink} className="btn btn--soft" style={{ gap: "0.5rem" }}>
+                    {shareCopied
+                      ? <><Check style={{ width: "0.875rem", height: "0.875rem" }} /> Copied!</>
+                      : <><Copy style={{ width: "0.875rem", height: "0.875rem" }} /> Copy link</>
+                    }
+                  </button>
+                  <button onClick={handleRevokeShareLink} disabled={shareLoading} className="btn btn--outline btn--sm" style={{ gap: "0.5rem", color: "var(--color-muted)" }}>
+                    {shareLoading
+                      ? <Loader2 style={{ width: "0.875rem", height: "0.875rem", animation: "spin 1s linear infinite" }} />
+                      : <Trash2 style={{ width: "0.875rem", height: "0.875rem" }} />
+                    }
+                    Revoke
+                  </button>
+                </div>
+              </>
+            ) : (
+              <button onClick={handleGenerateShareLink} disabled={shareLoading} className="btn btn--soft" style={{ gap: "0.5rem", alignSelf: "flex-start" }}>
+                {shareLoading
+                  ? <Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} />
+                  : <><Users style={{ width: "1rem", height: "1rem" }} /> Generate share link</>
+                }
+              </button>
+            )}
           </div>
         </div>
 

@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, DollarSign, Receipt, ShoppingCart, Settings, LogOut, Wallet } from "lucide-react";
+import { LayoutDashboard, DollarSign, Receipt, ShoppingCart, Settings, LogOut, Wallet, BarChart3, SplitSquareVertical } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 const navLinks = [
@@ -11,6 +11,8 @@ const navLinks = [
   { href: "/budget",    label: "Budget",    icon: DollarSign },
   { href: "/bills",     label: "Bills",     icon: Receipt },
   { href: "/groceries", label: "Groceries", icon: ShoppingCart },
+  { href: "/insights",  label: "Insights",  icon: BarChart3 },
+  { href: "/splits",    label: "Splits",    icon: SplitSquareVertical },
   { href: "/settings",  label: "Settings",  icon: Settings },
 ];
 

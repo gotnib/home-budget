@@ -148,6 +148,15 @@ export default function GroceriesPage() {
   const [receiptLogging, setReceiptLogging] = useState(false);
   const [showPurchased, setShowPurchased] = useState(false);
 
+  // Smart reorder
+  const [frequentItems, setFrequentItems] = useState<Record<string, { count: number; lastPrice: number | null }>>({});
+
+  // Nutrition summary
+  const [nutritionOpen, setNutritionOpen] = useState(false);
+  const [nutrition, setNutrition] = useState<import("@/app/api/groceries/nutrition/route").NutritionSummary | null>(null);
+  const [nutritionLoading, setNutritionLoading] = useState(false);
+  const [nutritionError, setNutritionError] = useState<string | null>(null);
+
   // Recipe modal
   const [recipeTarget, setRecipeTarget] = useState<string | null>(null);
   const [recipe, setRecipe] = useState<RecipeData | null>(null);
@@ -181,6 +190,7 @@ export default function GroceriesPage() {
         setAiStore(s.preferredStore ?? "");
         if (s.savedMealPlan) setSavedMealPlan(s.savedMealPlan);
         if (Array.isArray(s.savedLists) && s.savedLists.length > 0) setSavedLists(s.savedLists);
+        if (s.frequentItems && typeof s.frequentItems === "object") setFrequentItems(s.frequentItems);
       }
       setIsLoading(false);
     }
@@ -214,6 +224,21 @@ export default function GroceriesPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: item.id, status: newStatus }),
     });
+    // Track purchase frequency for smart reorder
+    if (newStatus === "purchased") {
+      fetch("/api/user-settings")
+        .then((r) => r.ok ? r.json() : null)
+        .then((s) => {
+          const freq: Record<string, { count: number; lastPrice: number | null }> = s?.frequentItems ?? {};
+          const key = item.name.toLowerCase().trim();
+          freq[key] = { count: (freq[key]?.count ?? 0) + 1, lastPrice: item.estimatedPrice };
+          fetch("/api/user-settings", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ frequentItems: freq }),
+          });
+        });
+    }
   }
 
   function handleDelete(id: string) {
@@ -377,6 +402,29 @@ export default function GroceriesPage() {
     setReceiptStore(""); setReceiptAmount("");
     await fetchItems();
     setReceiptLogging(false);
+  }
+
+  async function handleGetNutrition() {
+    if (!mealPlan) return;
+    const meals = mealPlan.weeks.flatMap((w) => w.days.flatMap((d) => [d.breakfast, d.lunch, d.dinner]));
+    setNutritionOpen(true);
+    if (nutrition) return;
+    setNutritionLoading(true);
+    setNutritionError(null);
+    try {
+      const res = await fetch("/api/groceries/nutrition", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ meals, adults: aiAdults, kids: aiKids }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed");
+      setNutrition(data.nutrition);
+    } catch (err) {
+      setNutritionError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setNutritionLoading(false);
+    }
   }
 
   async function handleMealClick(meal: string) {
@@ -711,18 +759,30 @@ export default function GroceriesPage() {
 
               {aiError && <div role="alert" className="alert alert--error">{aiError}</div>}
 
-              <button
-                type="button"
-                onClick={handleBuildGroceryList}
-                disabled={aiStep === "loading-list"}
-                className="btn btn--sage"
-                style={{ gap: "0.5rem" }}
-              >
-                {aiStep === "loading-list"
-                  ? <><Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} /> Honey is building your list…</>
-                  : <><ArrowRight style={{ width: "1rem", height: "1rem" }} /> Ask Honey to build my list</>
-                }
-              </button>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  onClick={handleBuildGroceryList}
+                  disabled={aiStep === "loading-list"}
+                  className="btn btn--sage"
+                  style={{ gap: "0.5rem", flex: 1 }}
+                >
+                  {aiStep === "loading-list"
+                    ? <><Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} /> Honey is building your list…</>
+                    : <><ArrowRight style={{ width: "1rem", height: "1rem" }} /> Ask Honey to build my list</>
+                  }
+                </button>
+                <button
+                  type="button"
+                  onClick={handleGetNutrition}
+                  className="btn btn--soft"
+                  style={{ gap: "0.5rem" }}
+                  title="Nutrition overview"
+                >
+                  <UtensilsCrossed style={{ width: "1rem", height: "1rem" }} />
+                  Nutrition
+                </button>
+              </div>
             </div>
           )}
 
@@ -865,6 +925,50 @@ export default function GroceriesPage() {
             )}
           </div>
         )}
+
+        {/* Smart reorder suggestions */}
+        {Object.keys(frequentItems).length > 0 && (() => {
+          const topItems = Object.entries(frequentItems)
+            .sort(([, a], [, b]) => b.count - a.count)
+            .slice(0, 8);
+          const plannedNames = new Set(items.filter((i) => i.status === "planned").map((i) => i.name.toLowerCase().trim()));
+          const suggestions = topItems.filter(([key]) => !plannedNames.has(key));
+          if (suggestions.length === 0) return null;
+          return (
+            <div className="card animate-fade-up delay-75">
+              <div className="card-header">
+                <h3 className="card-title">Quick reorder</h3>
+                <p className="card-description">Items you buy often</p>
+              </div>
+              <div className="card-body">
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                  {suggestions.map(([key, { lastPrice }]) => {
+                    const displayName = key.charAt(0).toUpperCase() + key.slice(1);
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={async () => {
+                          await fetch("/api/groceries/cart", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ name: displayName, quantity: 1, estimatedPrice: lastPrice ?? undefined }),
+                          });
+                          fetchItems();
+                        }}
+                        style={{ display: "flex", alignItems: "center", gap: "0.375rem", padding: "0.375rem 0.75rem", borderRadius: "999px", border: "1px solid var(--cream-300)", background: "var(--cream-50)", fontSize: "0.8125rem", fontWeight: 500, cursor: "pointer", color: "var(--color-fg)" }}
+                      >
+                        <Plus style={{ width: "0.75rem", height: "0.75rem", color: "var(--honey-500)" }} />
+                        {displayName}
+                        {lastPrice != null && <span style={{ color: "var(--color-muted)", fontSize: "0.75rem" }}>${lastPrice.toFixed(2)}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Quick add */}
         <div className="card animate-fade-up delay-100">
@@ -1080,6 +1184,64 @@ export default function GroceriesPage() {
         )}
 
       </main>
+
+      {/* Nutrition Modal */}
+      {nutritionOpen && (
+        <div className="ai-modal-backdrop" onClick={() => setNutritionOpen(false)}>
+          <div className="ai-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="ai-modal-header">
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <UtensilsCrossed style={{ width: "1.125rem", height: "1.125rem", color: "var(--sage-500)" }} />
+                <h2 style={{ fontWeight: 700, fontSize: "1.0625rem", color: "var(--color-fg)" }}>Nutrition overview</h2>
+              </div>
+              <button type="button" onClick={() => setNutritionOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-muted)", padding: "0.25rem", display: "flex" }}>
+                <X style={{ width: "1.25rem", height: "1.25rem" }} />
+              </button>
+            </div>
+            <div className="ai-modal-body">
+              {nutritionLoading && (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem", padding: "2rem 0" }}>
+                  <Loader2 style={{ width: "1.5rem", height: "1.5rem", color: "var(--sage-400)", animation: "spin 1s linear infinite" }} />
+                  <p style={{ fontSize: "0.875rem", color: "var(--color-muted)" }}>Analyzing your meal plan…</p>
+                </div>
+              )}
+              {nutritionError && <div role="alert" className="alert alert--error">{nutritionError}</div>}
+              {nutrition && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+                  <p style={{ fontSize: "0.9375rem", color: "var(--color-fg)", lineHeight: 1.5 }}>{nutrition.overview}</p>
+                  <div>
+                    <p style={{ fontWeight: 700, fontSize: "0.875rem", color: "var(--color-fg)", marginBottom: "0.625rem" }}>Daily averages per adult</p>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+                      {Object.entries(nutrition.dailyAverages).map(([key, val]) => (
+                        <div key={key} style={{ background: "var(--cream-100)", borderRadius: "0.75rem", padding: "0.625rem 0.875rem" }}>
+                          <p style={{ fontSize: "0.75rem", color: "var(--color-muted)", textTransform: "capitalize", marginBottom: "0.125rem" }}>{key}</p>
+                          <p style={{ fontWeight: 700, fontSize: "0.9375rem", color: "var(--color-fg)" }}>{val}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {nutrition.highlights.length > 0 && (
+                    <div>
+                      <p style={{ fontWeight: 700, fontSize: "0.875rem", color: "var(--color-fg)", marginBottom: "0.5rem" }}>Highlights</p>
+                      {nutrition.highlights.map((h, i) => (
+                        <p key={i} style={{ fontSize: "0.875rem", color: "var(--sage-700)", marginBottom: "0.25rem" }}>✓ {h}</p>
+                      ))}
+                    </div>
+                  )}
+                  {nutrition.tips.length > 0 && (
+                    <div>
+                      <p style={{ fontWeight: 700, fontSize: "0.875rem", color: "var(--color-fg)", marginBottom: "0.5rem" }}>Tips</p>
+                      {nutrition.tips.map((t, i) => (
+                        <p key={i} style={{ fontSize: "0.875rem", color: "var(--color-muted)", marginBottom: "0.25rem" }}>💡 {t}</p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Recipe Modal */}
       {recipeTarget && (

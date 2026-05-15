@@ -158,7 +158,7 @@ export default async function DashboardPage() {
                 )}
                 {upcomingBills.length > 0 && (
                   <p style={{ fontSize: "0.875rem", fontWeight: overdueBills.length > 0 ? 400 : 700, color: overdueBills.length > 0 ? "var(--blush-600)" : "var(--honey-800)", marginTop: overdueBills.length > 0 ? "0.125rem" : 0 }}>
-                    {upcomingBills.length} bill{upcomingBills.length > 1 ? "s" : ""} due this week: {upcomingBills.slice(0, 2).map(b => `${b.name} (${b.dueDay < todayDate + 1 ? "today" : `in ${b.dueDay - todayDate}d`})`).join(", ")}{upcomingBills.length > 2 ? ` +${upcomingBills.length - 2} more` : ""}
+                    {upcomingBills.length} bill{upcomingBills.length > 1 ? "s" : ""} due this week: {upcomingBills.slice(0, 2).map(b => `${b.name} (${(b.dueDay ?? 0) < todayDate + 1 ? "today" : `in ${(b.dueDay ?? 0) - todayDate}d`})`).join(", ")}{upcomingBills.length > 2 ? ` +${upcomingBills.length - 2} more` : ""}
                   </p>
                 )}
               </div>

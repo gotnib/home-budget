@@ -18,6 +18,7 @@ export async function GET() {
       preferredStore:  settings?.preferredStore  ?? "",
       savedMealPlan:   settings?.savedMealPlan   ?? null,
       savedLists:      settings?.savedLists      ?? [],
+      frequentItems:   settings?.frequentItems   ?? null,
     });
   } catch (error) {
     console.error("GET user-settings error:", error);
@@ -32,7 +33,7 @@ export async function PATCH(request: NextRequest) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await request.json();
-    const allowed = ["displayName", "payPeriod", "householdAdults", "householdKids", "preferredStore", "savedMealPlan", "savedLists"];
+    const allowed = ["displayName", "payPeriod", "householdAdults", "householdKids", "preferredStore", "savedMealPlan", "savedLists", "frequentItems"];
     const updates: Record<string, unknown> = {};
     for (const key of allowed) {
       if (key in body) updates[key] = body[key];
