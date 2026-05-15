@@ -166,7 +166,7 @@ img { max-width: 100%; height: auto; }
 .page-container {
   max-width: 80rem;
   margin: 0 auto;
-  padding: 1rem 0.875rem;
+  padding: 0.75rem 0.875rem;
   display: flex;
   flex-direction: column;
   gap: 0.875rem;
@@ -174,7 +174,7 @@ img { max-width: 100%; height: auto; }
 .page-container--md {
   max-width: 48rem;
   margin: 0 auto;
-  padding: 1rem 0.875rem;
+  padding: 0.75rem 0.875rem;
   display: flex;
   flex-direction: column;
   gap: 0.875rem;
@@ -182,7 +182,7 @@ img { max-width: 100%; height: auto; }
 .page-container--sm {
   max-width: 42rem;
   margin: 0 auto;
-  padding: 1rem 0.875rem;
+  padding: 0.75rem 0.875rem;
   display: flex;
   flex-direction: column;
   gap: 0.875rem;
@@ -456,11 +456,6 @@ img { max-width: 100%; height: auto; }
 }
 .tab-item.active .tab-item-icon { transform: scale(1.1); }
 
-.tab-bar-spacer {
-  display: block;
-  height: calc(68px + env(safe-area-inset-bottom));
-}
-@media (min-width: 768px) { .tab-bar-spacer { display: none; } }
 
 /* ── Cards ── */
 .card {

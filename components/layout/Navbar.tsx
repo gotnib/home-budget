@@ -163,7 +163,6 @@ export function Navbar({ userEmail }: NavbarProps) {
         })}
       </nav>
 
-      <div className="tab-bar-spacer" />
     </>
   );
 }
