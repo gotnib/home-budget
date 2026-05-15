@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LayoutDashboard, DollarSign, Receipt, ShoppingCart, Settings, LogOut, Wallet } from "lucide-react";
@@ -22,11 +22,13 @@ export function Navbar({ userEmail }: NavbarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const [appName, setAppName] = useState("HoneyCart");
 
   useEffect(() => {
-    try {
-      const name = localStorage.getItem("honey-display-name");
-      if (name) {
+    function applyName() {
+      try {
+        const name = localStorage.getItem("honey-display-name") || "HoneyCart";
+        setAppName(name);
         document.title = name;
         const meta = document.querySelector('meta[name="apple-mobile-web-app-title"]');
         if (meta) meta.setAttribute("content", name);
@@ -36,8 +38,11 @@ export function Navbar({ userEmail }: NavbarProps) {
           m.setAttribute("content", name);
           document.head.appendChild(m);
         }
-      }
-    } catch { /* ignore */ }
+      } catch { /* ignore */ }
+    }
+    applyName();
+    window.addEventListener("honey-name-changed", applyName);
+    return () => window.removeEventListener("honey-name-changed", applyName);
   }, []);
 
   async function handleSignOut() {
@@ -60,7 +65,7 @@ export function Navbar({ userEmail }: NavbarProps) {
               <Wallet style={{ width: "1rem", height: "1rem" }} strokeWidth={2} />
             </span>
             <span className="navbar-logo-text">
-              HoneyCart
+              {appName}
               <span className="navbar-logo-sub">Budget</span>
             </span>
           </Link>
@@ -94,7 +99,7 @@ export function Navbar({ userEmail }: NavbarProps) {
           <span className="navbar-mobile-icon">
             <Wallet style={{ width: "0.875rem", height: "0.875rem" }} strokeWidth={2} />
           </span>
-          <span className="navbar-mobile-name">HoneyCart</span>
+          <span className="navbar-mobile-name">{appName}</span>
         </Link>
         <button onClick={handleSignOut} className="btn-mobile-signout" aria-label="Sign out">
           <LogOut style={{ width: "1rem", height: "1rem" }} />

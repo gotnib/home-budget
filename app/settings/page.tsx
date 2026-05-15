@@ -73,6 +73,7 @@ export default function SettingsPage() {
         localStorage.removeItem(LS_DISPLAY_NAME);
         document.title = "HoneyCart";
       }
+      window.dispatchEvent(new CustomEvent("honey-name-changed"));
     } catch { /* ignore */ }
     setDisplayNameSaved(true);
     setTimeout(() => setDisplayNameSaved(false), 2500);
