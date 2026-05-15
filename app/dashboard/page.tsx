@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { normalizeToMonthly, calculateGroceryBudget } from "@/lib/budget";
+import { getHouseholdContext } from "@/lib/household";
 import { Navbar } from "@/components/layout/Navbar";
 import { BudgetSummary } from "@/components/dashboard/BudgetSummary";
 import { IncomeCard } from "@/components/dashboard/IncomeCard";
@@ -15,6 +16,9 @@ export default async function DashboardPage() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/");
+
+  const { role } = await getHouseholdContext(user.id);
+  if (role === "hive") redirect("/groceries");
 
   const [incomes, bills, groceryItems, plaidItems, budgetSettings] = await Promise.all([
     prisma.income.findMany({ where: { userId: user.id } }),

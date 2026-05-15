@@ -63,7 +63,7 @@ function Counter({ value, onChange, min = 0, max = 10 }: { value: number; onChan
 }
 
 function MealWeekCard({ week, onMealClick }: { week: MealWeek; onMealClick?: (meal: string) => void }) {
-  const [open, setOpen] = useState(week.week === 1);
+  const [open, setOpen] = useState(false);
   return (
     <div style={{ border: "1px solid var(--cream-200)", borderRadius: "0.875rem", overflow: "hidden" }}>
       <button
@@ -148,6 +148,9 @@ export default function GroceriesPage() {
   const [receiptLogging, setReceiptLogging] = useState(false);
   const [showPurchased, setShowPurchased] = useState(false);
 
+  // Household role
+  const [userRole, setUserRole] = useState<"queen" | "worker" | "hive">("queen");
+
   // Smart reorder
   const [frequentItems, setFrequentItems] = useState<Record<string, { count: number; lastPrice: number | null }>>({});
 
@@ -192,6 +195,8 @@ export default function GroceriesPage() {
         if (Array.isArray(s.savedLists) && s.savedLists.length > 0) setSavedLists(s.savedLists);
         if (s.frequentItems && typeof s.frequentItems === "object") setFrequentItems(s.frequentItems);
       }
+      const roleRes = await fetch("/api/household");
+      if (roleRes.ok) { const rd = await roleRes.json(); setUserRole(rd.role ?? "queen"); }
       setIsLoading(false);
     }
     init();
@@ -269,11 +274,13 @@ export default function GroceriesPage() {
       if (!res.ok) throw new Error(data.error ?? "Failed");
       setMealPlan(data.mealPlan);
       setAiStep("meal-plan");
-      setSavedMealPlan(data.mealPlan);
+      const planWithDate = { ...data.mealPlan, savedAt: new Date().toISOString() };
+      setSavedMealPlan(planWithDate);
+      setSavedMealPlanOpen(false);
       fetch("/api/user-settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ savedMealPlan: data.mealPlan }),
+        body: JSON.stringify({ savedMealPlan: planWithDate }),
       });
     } catch (err) {
       setAiError(err instanceof Error ? err.message : "Something went wrong");
@@ -541,6 +548,7 @@ export default function GroceriesPage() {
                     {savedMealPlan.budget ? ` · $${savedMealPlan.budget} budget` : ""}
                     {" · "}{savedMealPlan.adults} adult{savedMealPlan.adults > 1 ? "s" : ""}
                     {savedMealPlan.kids > 0 ? `, ${savedMealPlan.kids} kid${savedMealPlan.kids > 1 ? "s" : ""}` : ""}
+                    {(savedMealPlan as any).savedAt ? ` · saved ${new Date((savedMealPlan as any).savedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}
                   </p>
                 </div>
               </div>
@@ -571,7 +579,7 @@ export default function GroceriesPage() {
         )}
 
         {/* ── AI Meal Planner ── */}
-        <div className="card animate-fade-up delay-50">
+        {userRole !== "hive" && (<div className="card animate-fade-up delay-50">
 
           {/* Step indicator */}
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "1rem 1.25rem 0" }}>
@@ -862,7 +870,7 @@ export default function GroceriesPage() {
               </p>
             </div>
           )}
-        </div>
+        </div>)}
 
         {/* ── My Saved Lists ── */}
         {savedLists.length > 0 && (
@@ -925,7 +933,6 @@ export default function GroceriesPage() {
             )}
           </div>
         )}
-
         {/* Smart reorder suggestions */}
         {Object.keys(frequentItems).length > 0 && (() => {
           const topItems = Object.entries(frequentItems)
@@ -971,7 +978,7 @@ export default function GroceriesPage() {
         })()}
 
         {/* Quick add */}
-        <div className="card animate-fade-up delay-100">
+        {userRole !== "hive" && (<div className="card animate-fade-up delay-100">
           <div className="card-header">
             <h3 className="card-title">Add item</h3>
           </div>
@@ -1015,7 +1022,7 @@ export default function GroceriesPage() {
               </button>
             </form>
           </div>
-        </div>
+        </div>)}
 
         {/* Shopping list */}
         <div className="card animate-fade-up delay-150">
@@ -1078,7 +1085,7 @@ export default function GroceriesPage() {
         </div>
 
         {/* Log a receipt */}
-        <div className="card animate-fade-up delay-200">
+        {userRole !== "hive" && (<div className="card animate-fade-up delay-200">
           <div className="card-header">
             <span className="icon-pill icon-pill--honey icon-pill--sm" style={{ marginRight: "0.5rem" }}>
               <Receipt style={{ width: "1rem", height: "1rem" }} />
@@ -1120,7 +1127,7 @@ export default function GroceriesPage() {
               </button>
             </form>
           </div>
-        </div>
+        </div>)}
 
         {/* Purchased / logged */}
         {purchased.length > 0 && (

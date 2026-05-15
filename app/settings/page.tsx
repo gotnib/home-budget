@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Navbar } from "@/components/layout/Navbar";
 import { ConnectBankButton } from "@/components/plaid/ConnectBankButton";
-import { Building2, Check, Home, Loader2, LogOut, RefreshCw, Link2, Copy, Trash2, Users } from "lucide-react";
+import { Building2, Check, Home, Loader2, LogOut, RefreshCw, Copy, Trash2, Users, Crown, RefreshCcw, UserMinus } from "lucide-react";
 
 const LS_DISPLAY_NAME = "honey-display-name"; // kept as a fast client-side cache
 
@@ -35,6 +35,14 @@ export default function SettingsPage() {
   const [shareToken, setShareToken] = useState<string | null>(null);
   const [shareLoading, setShareLoading] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+
+  // Household members
+  interface HouseholdMember { id: string; email: string; householdRole: string | null; }
+  const [household, setHousehold] = useState<{ id: string; workerCode: string | null; hiveCode: string | null; members: HouseholdMember[] } | null>(null);
+  const [householdRole, setHouseholdRole] = useState<string>("queen");
+  const [householdLoading, setHouseholdLoading] = useState(false);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
   const router = useRouter();
   const supabase = createClient();
 
@@ -54,6 +62,9 @@ export default function SettingsPage() {
       // Load share token
       const shareRes = await fetch("/api/household/share");
       if (shareRes.ok) { const sd = await shareRes.json(); setShareToken(sd.token ?? null); }
+      // Load household
+      const hhRes = await fetch("/api/household");
+      if (hhRes.ok) { const hd = await hhRes.json(); setHousehold(hd.household); setHouseholdRole(hd.role ?? "queen"); }
     } catch { setError("Failed to load settings."); }
     finally { setLoading(false); }
   }, [supabase, router]);
@@ -108,6 +119,51 @@ export default function SettingsPage() {
       alert(`Synced ${data.synced ?? 0} transactions!`);
     } catch { setError("Sync failed. Please try again."); }
     finally { setIsSyncing(false); }
+  }
+
+  async function handleCreateHousehold() {
+    setHouseholdLoading(true);
+    try {
+      const res = await fetch("/api/household", { method: "POST" });
+      if (res.ok) { const d = await res.json(); setHousehold(d.household); setHouseholdRole("queen"); }
+    } catch { /* ignore */ }
+    finally { setHouseholdLoading(false); }
+  }
+
+  async function handleRefreshCodes() {
+    setHouseholdLoading(true);
+    try {
+      const res = await fetch("/api/household", { method: "PATCH" });
+      if (res.ok) { const d = await res.json(); setHousehold((h) => h ? { ...h, workerCode: d.household.workerCode, hiveCode: d.household.hiveCode } : h); }
+    } catch { /* ignore */ }
+    finally { setHouseholdLoading(false); }
+  }
+
+  async function handleRemoveMember(memberId: string) {
+    setRemovingMemberId(memberId);
+    try {
+      await fetch("/api/household/join", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ memberId }) });
+      setHousehold((h) => h ? { ...h, members: h.members.filter((m) => m.id !== memberId) } : h);
+    } catch { /* ignore */ }
+    finally { setRemovingMemberId(null); }
+  }
+
+  async function handleLeaveHousehold() {
+    setHouseholdLoading(true);
+    try {
+      await fetch("/api/household", { method: "DELETE" });
+      setHousehold(null);
+      setHouseholdRole("queen");
+    } catch { /* ignore */ }
+    finally { setHouseholdLoading(false); }
+  }
+
+  function copyCode(code: string) {
+    const joinUrl = `${window.location.origin}/join?code=${code}`;
+    navigator.clipboard.writeText(joinUrl).then(() => {
+      setCopiedCode(code);
+      setTimeout(() => setCopiedCode(null), 2000);
+    });
   }
 
   async function handleGenerateShareLink() {
@@ -268,6 +324,97 @@ export default function SettingsPage() {
               <Check style={{ width: "1rem", height: "1rem" }} />
               Save name
             </button>
+          </div>
+        </div>
+
+        {/* Household members */}
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-title">Household</h3>
+            <p className="card-description">
+              Invite family or roommates. <strong>Workers</strong> have full access. <strong>Hive</strong> members can only view the grocery list and meal plans.
+            </p>
+          </div>
+          <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+            {householdRole !== "queen" ? (
+              /* Member view */
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                <div style={{ background: "var(--cream-100)", borderRadius: "0.75rem", padding: "0.875rem 1rem", border: "1px solid var(--cream-200)" }}>
+                  <p style={{ fontSize: "0.8125rem", color: "var(--color-muted)", marginBottom: "0.25rem" }}>Your role</p>
+                  <p style={{ fontWeight: 700, color: "var(--color-fg)", textTransform: "capitalize" }}>{householdRole}</p>
+                </div>
+                <button onClick={handleLeaveHousehold} disabled={householdLoading} className="btn btn--outline btn--sm" style={{ gap: "0.5rem", color: "var(--blush-600)", alignSelf: "flex-start" }}>
+                  {householdLoading ? <Loader2 style={{ width: "0.875rem", height: "0.875rem", animation: "spin 1s linear infinite" }} /> : <UserMinus style={{ width: "0.875rem", height: "0.875rem" }} />}
+                  Leave household
+                </button>
+              </div>
+            ) : household ? (
+              /* Queen view — manage household */
+              <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                {/* Invite codes */}
+                {[
+                  { label: "Worker invite link", code: household.workerCode, desc: "Full access" },
+                  { label: "Hive invite link", code: household.hiveCode, desc: "Grocery & meal plan view only" },
+                ].map(({ label, code, desc }) => code && (
+                  <div key={label} style={{ background: "var(--cream-100)", borderRadius: "0.75rem", padding: "0.875rem 1rem", border: "1px solid var(--cream-200)" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.375rem" }}>
+                      <div>
+                        <p style={{ fontSize: "0.8125rem", fontWeight: 700, color: "var(--color-fg)" }}>{label}</p>
+                        <p style={{ fontSize: "0.75rem", color: "var(--color-muted)" }}>{desc}</p>
+                      </div>
+                      <button
+                        onClick={() => copyCode(code)}
+                        className="btn btn--soft btn--sm"
+                        style={{ gap: "0.375rem", fontSize: "0.8125rem" }}
+                      >
+                        {copiedCode === code ? <><Check style={{ width: "0.75rem", height: "0.75rem" }} /> Copied!</> : <><Copy style={{ width: "0.75rem", height: "0.75rem" }} /> Copy link</>}
+                      </button>
+                    </div>
+                    <p style={{ fontSize: "0.8125rem", fontFamily: "monospace", color: "var(--honey-700)", letterSpacing: "0.05em" }}>{code}</p>
+                  </div>
+                ))}
+
+                {/* Members list */}
+                {household.members.length > 0 && (
+                  <div>
+                    <p style={{ fontSize: "0.8125rem", fontWeight: 700, color: "var(--color-fg)", marginBottom: "0.5rem" }}>Members</p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+                      {household.members.map((m) => (
+                        <div key={m.id} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.625rem 0.875rem", background: "white", borderRadius: "0.75rem", border: "1px solid var(--cream-200)" }}>
+                          <Users style={{ width: "0.875rem", height: "0.875rem", color: "var(--color-muted)", flexShrink: 0 }} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ fontSize: "0.875rem", fontWeight: 500, color: "var(--color-fg)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.email}</p>
+                            <p style={{ fontSize: "0.75rem", color: "var(--color-muted)", textTransform: "capitalize" }}>{m.householdRole ?? "hive"}</p>
+                          </div>
+                          <button
+                            onClick={() => handleRemoveMember(m.id)}
+                            disabled={removingMemberId === m.id}
+                            className="btn btn--outline btn--sm"
+                            style={{ color: "var(--blush-600)", padding: "0.25rem 0.5rem" }}
+                            aria-label="Remove member"
+                          >
+                            {removingMemberId === m.id ? <Loader2 style={{ width: "0.75rem", height: "0.75rem", animation: "spin 1s linear infinite" }} /> : <UserMinus style={{ width: "0.75rem", height: "0.75rem" }} />}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <button onClick={handleRefreshCodes} disabled={householdLoading} className="btn btn--outline btn--sm" style={{ gap: "0.5rem", alignSelf: "flex-start", color: "var(--color-muted)" }}>
+                  {householdLoading ? <Loader2 style={{ width: "0.875rem", height: "0.875rem", animation: "spin 1s linear infinite" }} /> : <RefreshCcw style={{ width: "0.875rem", height: "0.875rem" }} />}
+                  Refresh invite codes
+                </button>
+              </div>
+            ) : (
+              /* No household yet */
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", alignItems: "flex-start" }}>
+                <p style={{ fontSize: "0.875rem", color: "var(--color-muted)" }}>Create a household to invite your partner or family members.</p>
+                <button onClick={handleCreateHousehold} disabled={householdLoading} className="btn btn--soft" style={{ gap: "0.5rem" }}>
+                  {householdLoading ? <Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} /> : <><Crown style={{ width: "1rem", height: "1rem" }} /> Create household</>}
+                </button>
+              </div>
+            )}
           </div>
         </div>
 

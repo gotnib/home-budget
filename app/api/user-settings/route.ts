@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
+import { getHouseholdContext } from "@/lib/household";
 
 export async function GET() {
   try {
@@ -8,7 +9,8 @@ export async function GET() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const settings = await prisma.budgetSettings.findUnique({ where: { userId: user.id } });
+    const { ownerId } = await getHouseholdContext(user.id);
+    const settings = await prisma.budgetSettings.findUnique({ where: { userId: ownerId } });
 
     return NextResponse.json({
       displayName:     settings?.displayName     ?? null,
@@ -32,6 +34,7 @@ export async function PATCH(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+    const { ownerId } = await getHouseholdContext(user.id);
     const body = await request.json();
     const allowed = ["displayName", "payPeriod", "householdAdults", "householdKids", "preferredStore", "savedMealPlan", "savedLists", "frequentItems"];
     const updates: Record<string, unknown> = {};
@@ -40,10 +43,10 @@ export async function PATCH(request: NextRequest) {
     }
 
     const settings = await prisma.budgetSettings.upsert({
-      where:  { userId: user.id },
+      where:  { userId: ownerId },
       update: updates,
       create: {
-        userId:          user.id,
+        userId:          ownerId,
         groceryPercent:  25,
         savingsGoal:     0,
         payPeriod:       "biweekly",

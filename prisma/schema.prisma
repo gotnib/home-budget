@@ -9,17 +9,21 @@ datasource db {
 }
 
 model UserProfile {
-  id        String   @id
-  email     String   @unique
-  createdAt DateTime @default(now())
+  id            String   @id
+  email         String   @unique
+  createdAt     DateTime @default(now())
+  householdId   String?
+  householdRole String?  // "worker" | "hive" (null = queen/solo)
 
-  plaidItems     PlaidItem[]
-  incomes        Income[]
-  bills          Bill[]
-  groceries      GroceryItem[]
-  budgetSettings BudgetSettings?
-  incomeEntries  IncomeEntry[]
-  splitExpenses  SplitExpense[]
+  plaidItems      PlaidItem[]
+  incomes         Income[]
+  bills           Bill[]
+  groceries       GroceryItem[]
+  budgetSettings  BudgetSettings?
+  incomeEntries   IncomeEntry[]
+  splitExpenses   SplitExpense[]
+  ownedHousehold  Household?
+  household       Household?      @relation("HouseholdMembers", fields: [householdId], references: [id], onDelete: SetNull)
 }
 
 model PlaidItem {
@@ -104,6 +108,17 @@ model BudgetSettings {
   updatedAt        DateTime @updatedAt
 
   user UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Household {
+  id          String   @id @default(cuid())
+  ownerId     String   @unique
+  workerCode  String?  @unique
+  hiveCode    String?  @unique
+  createdAt   DateTime @default(now())
+
+  owner   UserProfile   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  members UserProfile[] @relation("HouseholdMembers")
 }
 
 model IncomeEntry {
