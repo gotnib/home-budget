@@ -84,6 +84,40 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function PATCH(request: NextRequest) {
+  try {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const body = await request.json();
+    const { id, name, amount, dueDay, cadence } = body;
+
+    if (!id) return NextResponse.json({ error: "ID is required" }, { status: 400 });
+
+    const existing = await prisma.bill.findFirst({ where: { id, userId: user.id } });
+    if (!existing) return NextResponse.json({ error: "Bill not found" }, { status: 404 });
+
+    const updates: Record<string, unknown> = {};
+    if (name !== undefined) updates.name = name;
+    if (amount !== undefined) updates.amount = Number(amount);
+    if (dueDay !== undefined) updates.dueDay = dueDay === null || dueDay === "" ? null : Number(dueDay);
+    if (cadence !== undefined) {
+      const validCadences = ["weekly", "biweekly", "monthly", "annually"];
+      if (!validCadences.includes(cadence)) {
+        return NextResponse.json({ error: "Invalid cadence" }, { status: 400 });
+      }
+      updates.cadence = cadence;
+    }
+
+    const bill = await prisma.bill.update({ where: { id }, data: updates });
+    return NextResponse.json({ bill });
+  } catch (error) {
+    console.error("Update bill error:", error);
+    return NextResponse.json({ error: "Failed to update bill" }, { status: 500 });
+  }
+}
+
 export async function DELETE(request: NextRequest) {
   try {
     const supabase = createClient();
