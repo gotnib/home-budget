@@ -96,6 +96,7 @@ model BudgetSettings {
   preferredStore   String   @default("")
   savedMealPlan    Json?
   savedLists       Json?
+  createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
   user UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
