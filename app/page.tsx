@@ -53,7 +53,24 @@ export default function LandingPage() {
 
   function switchMode(next: Mode) { setMode(next); setError(null); setSuccess(null); }
 
+  const showOverlay = isLoading && mode === "signin";
+
   return (
+    <>
+    {showOverlay && (
+      <div className="signin-overlay" aria-live="assertive" aria-label="Signing in">
+        <div className="signin-overlay-blob1" aria-hidden />
+        <div className="signin-overlay-blob2" aria-hidden />
+        <div className="signin-overlay-icon" aria-hidden>
+          <Wallet style={{ width: "2rem", height: "2rem" }} strokeWidth={2.1} />
+        </div>
+        <div className="signin-overlay-spinner" aria-hidden />
+        <div style={{ textAlign: "center" }}>
+          <p className="signin-overlay-title">Signing you in…</p>
+          <p className="signin-overlay-sub">Getting your HoneyCart ready</p>
+        </div>
+      </div>
+    )}
     <main className="landing-wrap">
       <section className="landing-section">
         <div className="landing-grid">
@@ -232,5 +249,6 @@ export default function LandingPage() {
         </div>
       </section>
     </main>
+    </>
   );
 }

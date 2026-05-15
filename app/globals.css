@@ -2136,6 +2136,79 @@ img { max-width: 100%; height: auto; }
   transition: transform 0.7s cubic-bezier(0.16,1,0.3,1);
 }
 
+/* ── Sign-in overlay ── */
+.signin-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  background: linear-gradient(160deg, var(--honey-50) 0%, var(--cream-100) 60%, #fff 100%);
+  animation: fadeIn 0.25s ease;
+}
+.signin-overlay-blob1 {
+  position: absolute;
+  top: -5rem;
+  left: -5rem;
+  width: 28rem;
+  height: 28rem;
+  background: radial-gradient(circle, var(--honey-200) 0%, transparent 70%);
+  opacity: 0.5;
+  pointer-events: none;
+}
+.signin-overlay-blob2 {
+  position: absolute;
+  bottom: -4rem;
+  right: -4rem;
+  width: 24rem;
+  height: 24rem;
+  background: radial-gradient(circle, var(--sage-200) 0%, transparent 70%);
+  opacity: 0.4;
+  pointer-events: none;
+}
+.signin-overlay-icon {
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: 1.25rem;
+  background: var(--honey-400);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  animation: overlayIconPop 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+.signin-overlay-spinner {
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 3px solid var(--honey-200);
+  border-top-color: var(--honey-500);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+.signin-overlay-title {
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: var(--honey-900);
+  letter-spacing: -0.02em;
+}
+.signin-overlay-sub {
+  font-size: 0.9rem;
+  color: var(--color-muted);
+  margin-top: 0.25rem;
+}
+@keyframes overlayIconPop {
+  from { opacity: 0; transform: scale(0.7); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
 /* ── Reduced motion ── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
