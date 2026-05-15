@@ -18,6 +18,8 @@ model UserProfile {
   bills          Bill[]
   groceries      GroceryItem[]
   budgetSettings BudgetSettings?
+  incomeEntries  IncomeEntry[]
+  splitExpenses  SplitExpense[]
 }
 
 model PlaidItem {
@@ -96,8 +98,36 @@ model BudgetSettings {
   preferredStore   String   @default("")
   savedMealPlan    Json?
   savedLists       Json?
+  frequentItems    Json?
+  shareToken       String?  @unique
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+
+  user UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model IncomeEntry {
+  id         String   @id @default(cuid())
+  userId     String
+  sourceName String
+  amount     Float
+  receivedAt DateTime
+  note       String?
+  createdAt  DateTime @default(now())
+
+  user UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SplitExpense {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  total     Float
+  yourShare Float
+  paidBy    String   @default("me")
+  people    Json     @default("[]")
+  settled   Boolean  @default(false)
+  createdAt DateTime @default(now())
 
   user UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

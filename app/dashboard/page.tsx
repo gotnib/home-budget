@@ -9,7 +9,7 @@ import { IncomeCard } from "@/components/dashboard/IncomeCard";
 import { BillCard } from "@/components/dashboard/BillCard";
 import { GroceryBudgetCard } from "@/components/dashboard/GroceryBudgetCard";
 import { DashboardGreeting } from "@/components/dashboard/DashboardGreeting";
-import { Building2, ChevronRight, PiggyBank, Sparkles } from "lucide-react";
+import { Building2, ChevronRight, PiggyBank, Sparkles, AlertTriangle, TrendingUp } from "lucide-react";
 
 export default async function DashboardPage() {
   const supabase = createClient();
@@ -28,27 +28,51 @@ export default async function DashboardPage() {
   const fixedBills     = bills.reduce((s, b) => s + normalizeToMonthly(b.amount, b.cadence), 0);
   const groceryPercent = budgetSettings?.groceryPercent ?? 25;
   const savingsGoal    = budgetSettings?.savingsGoal ?? 0;
-  const { groceryBudget } = calculateGroceryBudget({ monthlyIncome, fixedBills, savingsGoal, groceryPercent });
+  const { groceryBudget, flexibleBudget } = calculateGroceryBudget({ monthlyIncome, fixedBills, savingsGoal, groceryPercent });
+  const safeToSpend    = Math.max(0, flexibleBudget - groceryBudget);
 
-  const grocerySpent  = groceryItems.filter((g) => g.status === "purchased").reduce((s, g) => s + (g.estimatedPrice ?? 0) * g.quantity, 0);
-  const flexibleLeft  = Math.max(0, monthlyIncome - fixedBills - groceryBudget);
+  const grocerySpent    = groceryItems.filter((g) => g.status === "purchased").reduce((s, g) => s + (g.estimatedPrice ?? 0) * g.quantity, 0);
   const groceryProgress = groceryBudget > 0 ? Math.min(100, (grocerySpent / groceryBudget) * 100) : 0;
   const fmt = (n: number) => "$" + n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
-  const userName    = user.email?.split("@")[0] ?? null;
+  // Upcoming bills (due within 7 days, monthly only, not yet paid)
+  const today = new Date();
+  const todayDate = today.getDate();
+  const upcomingBills = bills
+    .filter((b) => {
+      if (b.cadence !== "monthly" || b.dueDay == null) return false;
+      if (b.paidAt) {
+        const p = new Date(b.paidAt);
+        if (p.getMonth() === today.getMonth() && p.getFullYear() === today.getFullYear()) return false;
+      }
+      const daysUntil = b.dueDay - todayDate;
+      return daysUntil >= 0 && daysUntil <= 7;
+    })
+    .sort((a, b) => (a.dueDay ?? 0) - (b.dueDay ?? 0));
+
+  const overdueBills = bills.filter((b) => {
+    if (b.cadence !== "monthly" || b.dueDay == null) return false;
+    if (b.paidAt) {
+      const p = new Date(b.paidAt);
+      if (p.getMonth() === today.getMonth() && p.getFullYear() === today.getFullYear()) return false;
+    }
+    return b.dueDay < todayDate;
+  });
+
+  const userName     = user.email?.split("@")[0] ?? null;
   const billsForCard = bills.map((b) => ({ name: b.name, amount: normalizeToMonthly(b.amount, b.cadence), dueDay: b.dueDay }));
   const plannedCount = groceryItems.filter((g) => g.status === "planned").length;
 
   const quickLinks = [
     { href: "/groceries", emoji: "🛒", variant: "lavender" as const, label: "Build grocery list",  sub: `${plannedCount} item${plannedCount === 1 ? "" : "s"} planned` },
     { href: "/bills",     emoji: "📋", variant: "blush"    as const, label: "Tidy up bills",       sub: `${bills.length} recurring bill${bills.length === 1 ? "" : "s"}` },
-    { href: "/budget",    emoji: "🍯", variant: "honey"    as const, label: "Tune budget jars",    sub: `Groceries set to ${groceryPercent}%` },
+    { href: "/insights",  emoji: "📊", variant: "sage"     as const, label: "View insights",       sub: plaidItems.length > 0 ? "Spending breakdown ready" : "Connect bank to unlock" },
   ];
 
   const heroStats = [
     { label: "Income jar",       value: fmt(monthlyIncome), variant: "sage"  as const },
     { label: "Bills tucked away", value: fmt(fixedBills),   variant: "blush" as const },
-    { label: "Flexible honey",   value: fmt(flexibleLeft),  variant: "honey" as const },
+    { label: "Safe to spend",    value: fmt(safeToSpend),   variant: "honey" as const },
   ];
 
   return (
@@ -95,12 +119,53 @@ export default async function DashboardPage() {
               <div className="progress-track progress-track--lg">
                 <div className="progress-fill progress-fill--honey-blush" style={{ width: `${groceryProgress}%` }} />
               </div>
-              <p style={{ marginTop: "0.75rem", fontSize: "0.75rem", color: "var(--color-muted)" }}>
+              {savingsGoal > 0 && (
+                <div style={{ marginTop: "0.75rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <TrendingUp style={{ width: "0.875rem", height: "0.875rem", color: "var(--sage-600)" }} />
+                  <p style={{ fontSize: "0.75rem", color: "var(--sage-700)", fontWeight: 600 }}>
+                    Saving {fmt(savingsGoal)}/mo
+                  </p>
+                </div>
+              )}
+              <p style={{ marginTop: "0.5rem", fontSize: "0.75rem", color: "var(--color-muted)" }}>
                 {plannedCount} planned item{plannedCount === 1 ? "" : "s"} waiting in your cart.
               </p>
             </div>
           </div>
         </section>
+
+        {/* Overdue / upcoming bills strip */}
+        {(overdueBills.length > 0 || upcomingBills.length > 0) && (
+          <Link href="/bills" style={{ textDecoration: "none" }}>
+            <section className="animate-fade-up delay-50" style={{
+              background: overdueBills.length > 0 ? "var(--blush-50)" : "var(--honey-50)",
+              border: `1px solid ${overdueBills.length > 0 ? "var(--blush-200)" : "var(--honey-200)"}`,
+              borderRadius: "1rem",
+              padding: "0.875rem 1rem",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.75rem",
+            }}>
+              <AlertTriangle style={{
+                width: "1.125rem", height: "1.125rem", flexShrink: 0,
+                color: overdueBills.length > 0 ? "var(--blush-600)" : "var(--honey-600)",
+              }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {overdueBills.length > 0 && (
+                  <p style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--blush-800)" }}>
+                    {overdueBills.length} overdue bill{overdueBills.length > 1 ? "s" : ""}: {overdueBills.slice(0, 2).map(b => b.name).join(", ")}{overdueBills.length > 2 ? ` +${overdueBills.length - 2} more` : ""}
+                  </p>
+                )}
+                {upcomingBills.length > 0 && (
+                  <p style={{ fontSize: "0.875rem", fontWeight: overdueBills.length > 0 ? 400 : 700, color: overdueBills.length > 0 ? "var(--blush-600)" : "var(--honey-800)", marginTop: overdueBills.length > 0 ? "0.125rem" : 0 }}>
+                    {upcomingBills.length} bill{upcomingBills.length > 1 ? "s" : ""} due this week: {upcomingBills.slice(0, 2).map(b => `${b.name} (${b.dueDay < todayDate + 1 ? "today" : `in ${b.dueDay - todayDate}d`})`).join(", ")}{upcomingBills.length > 2 ? ` +${upcomingBills.length - 2} more` : ""}
+                  </p>
+                )}
+              </div>
+              <ChevronRight style={{ width: "1rem", height: "1rem", flexShrink: 0, color: "var(--color-muted)" }} />
+            </section>
+          </Link>
+        )}
 
         {/* Bank connect banner */}
         {plaidItems.length === 0 && (
