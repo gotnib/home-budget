@@ -5,7 +5,7 @@ import {
   Loader2, Plus, Trash2, CheckCircle2, Circle,
   Sparkles, Receipt, ChevronDown, ChevronUp,
   Users, Baby, Calendar, ArrowRight, RotateCcw,
-  UtensilsCrossed, Store, DollarSign,
+  UtensilsCrossed, Store, DollarSign, Bookmark, X,
 } from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
 import type { MealPlan, MealWeek } from "@/app/api/groceries/meal-plan/route";
@@ -22,6 +22,14 @@ interface AISuggestion {
   name: string;
   quantity: number;
   estimatedPrice: number;
+}
+
+interface SavedList {
+  id: string;
+  name: string;
+  store: string;
+  createdAt: string;
+  items: AISuggestion[];
 }
 
 type AIStep = "configure" | "loading-plan" | "meal-plan" | "loading-list" | "list";
@@ -62,9 +70,7 @@ function MealWeekCard({ week }: { week: MealWeek }) {
         onClick={() => setOpen((v) => !v)}
         style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "0.75rem 1rem", background: "var(--cream-100)", border: "none", cursor: "pointer" }}
       >
-        <span style={{ fontWeight: 700, fontSize: "0.9375rem", color: "var(--color-fg)" }}>
-          Week {week.week}
-        </span>
+        <span style={{ fontWeight: 700, fontSize: "0.9375rem", color: "var(--color-fg)" }}>Week {week.week}</span>
         {open
           ? <ChevronUp style={{ width: "1rem", height: "1rem", color: "var(--color-muted)" }} />
           : <ChevronDown style={{ width: "1rem", height: "1rem", color: "var(--color-muted)" }} />
@@ -73,14 +79,7 @@ function MealWeekCard({ week }: { week: MealWeek }) {
       {open && (
         <div>
           {week.days.map((day, i) => (
-            <div
-              key={day.day}
-              style={{
-                padding: "0.625rem 1rem",
-                borderTop: "1px solid var(--cream-200)",
-                background: i % 2 === 0 ? "white" : "var(--honey-50)",
-              }}
-            >
+            <div key={day.day} style={{ padding: "0.625rem 1rem", borderTop: "1px solid var(--cream-200)", background: i % 2 === 0 ? "white" : "var(--honey-50)" }}>
               <p style={{ fontWeight: 700, fontSize: "0.75rem", color: "var(--honey-700)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.375rem" }}>{day.day}</p>
               <div style={{ display: "grid", gap: "0.25rem" }}>
                 {[["🌅", day.breakfast], ["☀️", day.lunch], ["🌙", day.dinner]].map(([emoji, meal]) => (
@@ -96,6 +95,9 @@ function MealWeekCard({ week }: { week: MealWeek }) {
     </div>
   );
 }
+
+const LS_MEAL_PLAN  = "honey-meal-plan";
+const LS_SAVED_LISTS = "honey-saved-lists";
 
 export default function GroceriesPage() {
   const [items, setItems] = useState<GroceryItem[]>([]);
@@ -123,6 +125,13 @@ export default function GroceriesPage() {
   const [aiAdding, setAiAdding] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
+  // Saved meal plan & lists
+  const [savedMealPlan, setSavedMealPlan] = useState<MealPlan | null>(null);
+  const [savedMealPlanOpen, setSavedMealPlanOpen] = useState(false);
+  const [savedLists, setSavedLists] = useState<SavedList[]>([]);
+  const [savedListsOpen, setSavedListsOpen] = useState(false);
+  const [loadingListId, setLoadingListId] = useState<string | null>(null);
+
   // Receipt
   const [receiptStore, setReceiptStore] = useState("");
   const [receiptAmount, setReceiptAmount] = useState("");
@@ -145,6 +154,12 @@ export default function GroceriesPage() {
 
   useEffect(() => {
     Promise.all([fetchItems(), fetchBudget()]).finally(() => setIsLoading(false));
+    try {
+      const raw = localStorage.getItem(LS_MEAL_PLAN);
+      if (raw) setSavedMealPlan(JSON.parse(raw));
+      const listsRaw = localStorage.getItem(LS_SAVED_LISTS);
+      if (listsRaw) setSavedLists(JSON.parse(listsRaw));
+    } catch { /* ignore */ }
   }, [fetchItems, fetchBudget]);
 
   async function handleAddItem(e: React.FormEvent) {
@@ -201,6 +216,11 @@ export default function GroceriesPage() {
       if (!res.ok) throw new Error(data.error ?? "Failed");
       setMealPlan(data.mealPlan);
       setAiStep("meal-plan");
+      // Persist the meal plan
+      try {
+        localStorage.setItem(LS_MEAL_PLAN, JSON.stringify(data.mealPlan));
+        setSavedMealPlan(data.mealPlan);
+      } catch { /* ignore */ }
     } catch (err) {
       setAiError(err instanceof Error ? err.message : "Something went wrong");
       setAiStep("configure");
@@ -239,6 +259,25 @@ export default function GroceriesPage() {
         body: JSON.stringify(item),
       });
     }
+    // Auto-save this list for reuse
+    try {
+      const listName = [
+        mealPlan ? `${mealPlan.totalDays} days` : null,
+        mealPlan?.store || null,
+        new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      ].filter(Boolean).join(" · ");
+      const newList: SavedList = {
+        id: Date.now().toString(),
+        name: listName,
+        store: mealPlan?.store ?? "",
+        createdAt: new Date().toISOString(),
+        items: toAdd,
+      };
+      const updated = [newList, ...savedLists].slice(0, 10);
+      setSavedLists(updated);
+      localStorage.setItem(LS_SAVED_LISTS, JSON.stringify(updated));
+    } catch { /* ignore */ }
+
     await fetchItems();
     setAiStep("configure");
     setMealPlan(null);
@@ -256,6 +295,37 @@ export default function GroceriesPage() {
       next.has(i) ? next.delete(i) : next.add(i);
       return next;
     });
+  }
+
+  function removeSavedMealPlan() {
+    try { localStorage.removeItem(LS_MEAL_PLAN); } catch { /* ignore */ }
+    setSavedMealPlan(null);
+  }
+
+  function handleUseSavedMealPlan() {
+    if (!savedMealPlan) return;
+    setMealPlan(savedMealPlan);
+    setAiStep("meal-plan");
+    setSavedMealPlanOpen(false);
+  }
+
+  async function handleLoadSavedList(list: SavedList) {
+    setLoadingListId(list.id);
+    for (const item of list.items) {
+      await fetch("/api/groceries/cart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(item),
+      });
+    }
+    await fetchItems();
+    setLoadingListId(null);
+  }
+
+  function handleDeleteSavedList(id: string) {
+    const updated = savedLists.filter((l) => l.id !== id);
+    setSavedLists(updated);
+    try { localStorage.setItem(LS_SAVED_LISTS, JSON.stringify(updated)); } catch { /* ignore */ }
   }
 
   async function handleReceipt(e: React.FormEvent) {
@@ -319,6 +389,56 @@ export default function GroceriesPage() {
           )}
         </div>
 
+        {/* ── Saved Meal Plan card ── */}
+        {savedMealPlan && (
+          <div className="card animate-fade-up" style={{ borderColor: "var(--honey-200)", background: "var(--honey-50)" }}>
+            <button
+              type="button"
+              className="card-header"
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
+              onClick={() => setSavedMealPlanOpen((v) => !v)}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
+                <span className="icon-pill icon-pill--honey icon-pill--sm">
+                  <UtensilsCrossed style={{ width: "1rem", height: "1rem" }} />
+                </span>
+                <div>
+                  <h3 className="card-title">Saved meal plan</h3>
+                  <p style={{ fontSize: "0.75rem", color: "var(--color-muted)", marginTop: "0.125rem" }}>
+                    {savedMealPlan.totalDays} days
+                    {savedMealPlan.store ? ` · ${savedMealPlan.store}` : ""}
+                    {savedMealPlan.budget ? ` · $${savedMealPlan.budget} budget` : ""}
+                    {" · "}{savedMealPlan.adults} adult{savedMealPlan.adults > 1 ? "s" : ""}
+                    {savedMealPlan.kids > 0 ? `, ${savedMealPlan.kids} kid${savedMealPlan.kids > 1 ? "s" : ""}` : ""}
+                  </p>
+                </div>
+              </div>
+              {savedMealPlanOpen
+                ? <ChevronUp style={{ width: "1rem", height: "1rem", color: "var(--color-muted)", flexShrink: 0 }} />
+                : <ChevronDown style={{ width: "1rem", height: "1rem", color: "var(--color-muted)", flexShrink: 0 }} />
+              }
+            </button>
+
+            {savedMealPlanOpen && (
+              <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                {savedMealPlan.weeks.map((week) => (
+                  <MealWeekCard key={week.week} week={week} />
+                ))}
+                <div style={{ display: "flex", gap: "0.5rem", paddingTop: "0.25rem" }}>
+                  <button type="button" onClick={handleUseSavedMealPlan} className="btn btn--honey" style={{ flex: 1, gap: "0.5rem", fontSize: "0.875rem" }}>
+                    <ArrowRight style={{ width: "0.875rem", height: "0.875rem" }} />
+                    Build grocery list
+                  </button>
+                  <button type="button" onClick={removeSavedMealPlan} className="btn btn--ghost" style={{ gap: "0.5rem", fontSize: "0.875rem", color: "var(--blush-700)" }}>
+                    <X style={{ width: "0.875rem", height: "0.875rem" }} />
+                    Remove
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ── AI Meal Planner ── */}
         <div className="card animate-fade-up delay-50">
 
@@ -371,18 +491,7 @@ export default function GroceriesPage() {
                       type="button"
                       onClick={() => setAiWeeks(weeks)}
                       disabled={isAILoading}
-                      style={{
-                        padding: "0.5rem 1rem",
-                        borderRadius: "0.75rem",
-                        border: "1px solid",
-                        borderColor: aiWeeks === weeks ? "var(--honey-400)" : "var(--cream-300)",
-                        background: aiWeeks === weeks ? "var(--honey-100)" : "white",
-                        fontWeight: 700,
-                        fontSize: "0.875rem",
-                        color: aiWeeks === weeks ? "var(--honey-800)" : "var(--color-muted)",
-                        cursor: isAILoading ? "default" : "pointer",
-                        transition: "all 0.15s",
-                      }}
+                      style={{ padding: "0.5rem 1rem", borderRadius: "0.75rem", border: "1px solid", borderColor: aiWeeks === weeks ? "var(--honey-400)" : "var(--cream-300)", background: aiWeeks === weeks ? "var(--honey-100)" : "white", fontWeight: 700, fontSize: "0.875rem", color: aiWeeks === weeks ? "var(--honey-800)" : "var(--color-muted)", cursor: isAILoading ? "default" : "pointer", transition: "all 0.15s" }}
                     >
                       {label}
                     </button>
@@ -539,9 +648,12 @@ export default function GroceriesPage() {
             <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div>
-                  <h3 className="card-title">Grocery list</h3>
+                  <h3 className="card-title">
+                    Grocery list{mealPlan?.store ? <span style={{ fontWeight: 500, color: "var(--color-muted)" }}> · {mealPlan.store}</span> : ""}
+                  </h3>
                   <p style={{ fontSize: "0.8125rem", color: "var(--color-muted)", marginTop: "0.125rem" }}>
                     {aiSelected.size} of {aiSuggestions.length} selected · est. <strong>${aiTotal.toFixed(2)}</strong>
+                    {mealPlan?.budget ? <span> · <span style={{ color: mealPlan.budget && aiTotal > mealPlan.budget ? "var(--blush-700)" : "var(--sage-700)", fontWeight: 700 }}>${mealPlan.budget} budget</span></span> : ""}
                   </p>
                 </div>
                 <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
@@ -602,9 +714,75 @@ export default function GroceriesPage() {
                 }
                 Add {aiSelected.size} item{aiSelected.size !== 1 ? "s" : ""} to my list
               </button>
+              <p style={{ fontSize: "0.75rem", color: "var(--color-muted)", textAlign: "center", marginTop: "-0.5rem" }}>
+                This list will be saved to My Saved Lists automatically.
+              </p>
             </div>
           )}
         </div>
+
+        {/* ── My Saved Lists ── */}
+        {savedLists.length > 0 && (
+          <div className="card animate-fade-up delay-75">
+            <button
+              type="button"
+              className="card-header"
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
+              onClick={() => setSavedListsOpen((v) => !v)}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <span className="icon-pill icon-pill--lavender icon-pill--sm">
+                  <Bookmark style={{ width: "1rem", height: "1rem" }} />
+                </span>
+                <h3 className="card-title">My Saved Lists</h3>
+                <span className="badge badge--sage">{savedLists.length}</span>
+              </div>
+              {savedListsOpen
+                ? <ChevronUp style={{ width: "1rem", height: "1rem", color: "var(--color-muted)" }} />
+                : <ChevronDown style={{ width: "1rem", height: "1rem", color: "var(--color-muted)" }} />
+              }
+            </button>
+
+            {savedListsOpen && (
+              <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                {savedLists.map((list) => (
+                  <div
+                    key={list.id}
+                    style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.75rem", borderRadius: "0.75rem", border: "1px solid var(--cream-200)", background: "white" }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontWeight: 600, fontSize: "0.875rem", color: "var(--color-fg)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{list.name}</p>
+                      <p style={{ fontSize: "0.75rem", color: "var(--color-muted)", marginTop: "0.125rem" }}>
+                        {list.items.length} items · ${list.items.reduce((s, i) => s + i.estimatedPrice * i.quantity, 0).toFixed(2)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleLoadSavedList(list)}
+                      disabled={loadingListId === list.id}
+                      className="btn btn--sage"
+                      style={{ fontSize: "0.8125rem", padding: "0.4375rem 0.875rem", gap: "0.375rem", flexShrink: 0 }}
+                    >
+                      {loadingListId === list.id
+                        ? <Loader2 style={{ width: "0.875rem", height: "0.875rem", animation: "spin 1s linear infinite" }} />
+                        : <Plus style={{ width: "0.875rem", height: "0.875rem" }} />
+                      }
+                      Load
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteSavedList(list.id)}
+                      aria-label={`Delete ${list.name}`}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-muted)", flexShrink: 0, padding: "0.625rem", margin: "-0.625rem -0.375rem -0.625rem 0", display: "flex", alignItems: "center", justifyContent: "center", minWidth: "2.75rem", minHeight: "2.75rem", borderRadius: "0.5rem" }}
+                    >
+                      <Trash2 style={{ width: "1rem", height: "1rem" }} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Quick add */}
         <div className="card animate-fade-up delay-100">
@@ -674,15 +852,15 @@ export default function GroceriesPage() {
                   <div
                     key={item.id}
                     style={{
-                      display: "flex", alignItems: "center", gap: "0.75rem",
-                      padding: "0.75rem 0",
+                      display: "flex", alignItems: "center", gap: "0.5rem",
+                      padding: "0.625rem 0",
                       borderBottom: idx < planned.length - 1 ? "1px solid var(--cream-200)" : "none",
                     }}
                   >
                     <button
                       type="button"
                       onClick={() => handleCheck(item)}
-                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--sage-500)", flexShrink: 0, padding: 0, display: "flex" }}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--sage-500)", flexShrink: 0, padding: "0.5rem", margin: "-0.5rem 0 -0.5rem -0.5rem", display: "flex", borderRadius: "0.5rem" }}
                       aria-label={`Mark ${item.name} as purchased`}
                     >
                       <Circle style={{ width: "1.375rem", height: "1.375rem" }} />
@@ -701,10 +879,10 @@ export default function GroceriesPage() {
                     <button
                       type="button"
                       onClick={() => handleDelete(item.id)}
-                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-muted)", flexShrink: 0, padding: 0, display: "flex" }}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-muted)", flexShrink: 0, padding: "0.625rem", margin: "-0.625rem -0.625rem -0.625rem 0", display: "flex", alignItems: "center", justifyContent: "center", minWidth: "2.75rem", minHeight: "2.75rem", borderRadius: "0.5rem" }}
                       aria-label={`Remove ${item.name}`}
                     >
-                      <Trash2 style={{ width: "1rem", height: "1rem" }} />
+                      <Trash2 style={{ width: "1.125rem", height: "1.125rem" }} />
                     </button>
                   </div>
                 ))}
@@ -786,7 +964,7 @@ export default function GroceriesPage() {
                     <div
                       key={item.id}
                       style={{
-                        display: "flex", alignItems: "center", gap: "0.75rem",
+                        display: "flex", alignItems: "center", gap: "0.5rem",
                         padding: "0.625rem 0",
                         borderBottom: idx < purchased.length - 1 ? "1px solid var(--cream-200)" : "none",
                         opacity: 0.75,
@@ -795,7 +973,7 @@ export default function GroceriesPage() {
                       <button
                         type="button"
                         onClick={() => handleCheck(item)}
-                        style={{ background: "none", border: "none", cursor: "pointer", color: "var(--sage-500)", flexShrink: 0, padding: 0, display: "flex" }}
+                        style={{ background: "none", border: "none", cursor: "pointer", color: "var(--sage-500)", flexShrink: 0, padding: "0.5rem", margin: "-0.5rem 0 -0.5rem -0.5rem", display: "flex", borderRadius: "0.5rem" }}
                       >
                         <CheckCircle2 style={{ width: "1.375rem", height: "1.375rem" }} />
                       </button>
@@ -808,9 +986,9 @@ export default function GroceriesPage() {
                       <button
                         type="button"
                         onClick={() => handleDelete(item.id)}
-                        style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-muted)", flexShrink: 0, padding: 0, display: "flex" }}
+                        style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-muted)", flexShrink: 0, padding: "0.625rem", margin: "-0.625rem -0.625rem -0.625rem 0", display: "flex", alignItems: "center", justifyContent: "center", minWidth: "2.75rem", minHeight: "2.75rem", borderRadius: "0.5rem" }}
                       >
-                        <Trash2 style={{ width: "1rem", height: "1rem" }} />
+                        <Trash2 style={{ width: "1.125rem", height: "1.125rem" }} />
                       </button>
                     </div>
                   ))}
