@@ -41,10 +41,15 @@ export default function LandingPage() {
         redirectingRef.current = true;
         router.push("/dashboard"); router.refresh();
       } else {
-        const { error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-        setSuccess("Check your email to confirm your account!");
-        setEmail(""); setPassword("");
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email, password });
+        if (signUpError) throw signUpError;
+        if (signUpData.session) {
+          redirectingRef.current = true;
+          router.push("/dashboard"); router.refresh();
+        } else {
+          setSuccess("Account created! Check your email to confirm, then sign in.");
+          setEmail(""); setPassword("");
+        }
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -55,7 +60,7 @@ export default function LandingPage() {
 
   function switchMode(next: Mode) { setMode(next); setError(null); setSuccess(null); }
 
-  const showOverlay = isLoading && mode === "signin";
+  const showOverlay = isLoading && redirectingRef.current;
 
   return (
     <>

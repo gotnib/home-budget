@@ -179,8 +179,8 @@ export default async function DashboardPage() {
                 <Building2 style={{ width: "1.25rem", height: "1.25rem" }} />
               </span>
               <div>
-                <p className="bank-banner-title">Connect your bank to auto-import</p>
-                <p className="bank-banner-sub">Plaid securely syncs income and recurring bills</p>
+                <p className="bank-banner-title">Connect your bank or add income manually</p>
+                <p className="bank-banner-sub">Link via Plaid for auto-sync, or enter income on the Budget page</p>
               </div>
             </div>
             <ChevronRight style={{ width: "1.25rem", height: "1.25rem", flexShrink: 0, color: "var(--lavender-400)", transition: "transform 0.2s" }} />

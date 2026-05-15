@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Loader2, Save, CheckCircle2, Wallet, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, Save, CheckCircle2, Wallet, ChevronDown, ChevronUp, Trash2, Plus } from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
+import { ManualIncomeForm } from "@/components/forms/ManualIncomeForm";
 
 interface BudgetData {
   monthlyIncome: number;
@@ -85,7 +86,7 @@ function PaycheckCard({ monthlyIncome, savingsGoal, groceryBudget, bills, initia
   ].filter((r) => r.amount > 0);
 
   return (
-    <div className="card animate-fade-up delay-100">
+    <div className="card animate-fade-up delay-150">
       <div className="card-header">
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
           <span className="icon-pill icon-pill--honey icon-pill--sm">
@@ -258,6 +259,8 @@ function PaycheckCard({ monthlyIncome, savingsGoal, groceryBudget, bills, initia
 export default function BudgetPage() {
   const [data, setData] = useState<BudgetData | null>(null);
   const [bills, setBills] = useState<Bill[]>([]);
+  const [incomes, setIncomes] = useState<Array<{id:string;name:string;amount:number;cadence:string}>>([]);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -270,14 +273,16 @@ export default function BudgetPage() {
   const fetchBudget = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [budgetRes, billsRes, settingsRes] = await Promise.all([
+      const [budgetRes, billsRes, settingsRes, incRes] = await Promise.all([
         fetch("/api/budget"),
         fetch("/api/bills"),
         fetch("/api/user-settings"),
+        fetch("/api/income"),
       ]);
       const budgetJson   = await budgetRes.json();
       const billsJson    = await billsRes.json();
       const settingsJson = settingsRes.ok ? await settingsRes.json() : {};
+      const incJson      = incRes.ok ? await incRes.json() : {};
       if (!budgetRes.ok) throw new Error(budgetJson.error);
       setData(budgetJson);
       setGroceryPercent(budgetJson.groceryPercent);
@@ -285,6 +290,7 @@ export default function BudgetPage() {
       setSavingsGoalInput(String(budgetJson.savingsGoal));
       if (billsRes.ok) setBills(billsJson.bills ?? []);
       if (settingsJson.payPeriod) setPayPeriod(settingsJson.payPeriod as PayPeriod);
+      setIncomes(incJson.incomes ?? []);
     } catch { setError("Failed to load budget data."); }
     finally { setIsLoading(false); }
   }, []);
@@ -316,6 +322,20 @@ export default function BudgetPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");
     } finally { setIsSaving(false); }
+  }
+
+  async function handleDeleteIncome(id: string) {
+    setDeletingId(id);
+    try {
+      await fetch("/api/income", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      setIncomes((prev) => prev.filter((inc) => inc.id !== id));
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   if (isLoading) {
@@ -350,12 +370,56 @@ export default function BudgetPage() {
 
         {error && <div className="alert alert--error animate-slide-up">{error}</div>}
 
+        {/* Income sources */}
+        <div className="card animate-fade-up delay-50">
+          <div className="card-header">
+            <h3 className="card-title" style={{ color: "var(--sage-700)" }}>Income sources</h3>
+            <p className="card-description">Add your salary, freelance, or any recurring income.</p>
+          </div>
+          <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+            <ManualIncomeForm onSuccess={fetchBudget} />
+            {incomes.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.125rem" }}>
+                {incomes.map((inc, i) => (
+                  <div key={inc.id}>
+                    {i > 0 && <hr className="separator" />}
+                    <div className="list-item-row">
+                      <div className="list-item-content">
+                        <span className="list-item-name">{inc.name}</span>
+                        <p className="list-item-meta">
+                          {({weekly:"Weekly",biweekly:"Bi-weekly",monthly:"Monthly",annually:"Annually"} as Record<string,string>)[inc.cadence] ?? inc.cadence}
+                          {" · "}
+                          <strong style={{ color: "var(--sage-700)" }}>
+                            ${(inc.cadence === "weekly" ? inc.amount*52/12 : inc.cadence === "biweekly" ? inc.amount*26/12 : inc.cadence === "annually" ? inc.amount/12 : inc.amount).toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:0})}/mo
+                          </strong>
+                        </p>
+                      </div>
+                      <p className="list-item-amount">${inc.amount.toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:0})}</p>
+                      <button
+                        onClick={() => handleDeleteIncome(inc.id)}
+                        disabled={deletingId === inc.id}
+                        aria-label="Delete income"
+                        className="list-item-delete"
+                      >
+                        {deletingId === inc.id
+                          ? <Loader2 style={{ width: "0.875rem", height: "0.875rem", animation: "spin 1s linear infinite" }} />
+                          : <Trash2 style={{ width: "0.875rem", height: "0.875rem" }} />
+                        }
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Income hero */}
-        <div className="stat-hero stat-hero--sage animate-fade-up delay-50" style={{ padding: "1.25rem" }}>
+        <div className="stat-hero stat-hero--sage animate-fade-up delay-100" style={{ padding: "1.25rem" }}>
           <div className="stat-hero-content">
             <p className="stat-hero-label">Monthly income</p>
             <p className="stat-hero-value" style={{ fontSize: "2.25rem", marginTop: "0.5rem" }}>{fmt(monthlyIncome)}</p>
-            <p className="stat-hero-sub">Calculated from your income sources</p>
+            <p className="stat-hero-sub">{incomes.length} source{incomes.length === 1 ? "" : "s"}</p>
           </div>
         </div>
 
@@ -369,7 +433,7 @@ export default function BudgetPage() {
         />
 
         {/* Fixed bills */}
-        <div className="card animate-fade-up delay-100">
+        <div className="card animate-fade-up delay-200">
           <div className="card-header">
             <h3 className="card-title" style={{ color: "var(--blush-700)" }}>Fixed bills</h3>
           </div>
