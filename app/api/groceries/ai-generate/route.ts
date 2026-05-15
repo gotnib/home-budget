@@ -57,8 +57,9 @@ ${mealsText}
 Rules:
 - Consolidate ingredients across all meals (e.g. one "Pasta 1lb" not separate entries per meal)
 - Include essential staples and pantry items needed (oils, spices, condiments, basics)
-- Scale quantities to the household size (${peopleDesc})${effectiveBudget ? `\n- Keep total cost within $${effectiveBudget.toFixed(2)}` : ""}
-- 20-35 items total
+- Scale quantities to the household size (${peopleDesc})
+- 20-35 items total${effectiveBudget ? `
+- CRITICAL BUDGET RULE: The sum of (quantity × estimatedPrice) for ALL items MUST be ≤ $${effectiveBudget.toFixed(2)}. Before responding, calculate your running total. If you exceed the budget, reduce quantities, swap expensive ingredients for cheaper ones (e.g. chicken thighs instead of breast, canned instead of fresh, store brand), or remove non-essential items. Do NOT return a list that exceeds $${effectiveBudget.toFixed(2)}.` : ""}
 
 Respond ONLY with a JSON array (no markdown, no explanation):
 [{"name": "string", "quantity": number, "estimatedPrice": number}]

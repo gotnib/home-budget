@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Loader2, Save, CheckCircle2, Wallet } from "lucide-react";
+import { Loader2, Save, CheckCircle2, Wallet, ChevronDown, ChevronUp } from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
 
 interface BudgetData {
@@ -11,55 +11,76 @@ interface BudgetData {
   groceryPercent: number;
 }
 
+interface Bill {
+  id: string;
+  name: string;
+  amount: number;
+  cadence: string;
+  dueDay: number | null;
+}
+
 type PayPeriod = "weekly" | "biweekly" | "twicemonthly" | "monthly";
 
 const PAY_PERIODS: { key: PayPeriod; label: string; perYear: number }[] = [
-  { key: "weekly",       label: "Weekly",        perYear: 52   },
-  { key: "biweekly",    label: "Biweekly",       perYear: 26   },
-  { key: "twicemonthly",label: "Twice Monthly",  perYear: 24   },
-  { key: "monthly",     label: "Monthly",        perYear: 12   },
+  { key: "weekly",        label: "Weekly",       perYear: 52 },
+  { key: "biweekly",     label: "Biweekly",      perYear: 26 },
+  { key: "twicemonthly", label: "Twice Monthly", perYear: 24 },
+  { key: "monthly",      label: "Monthly",       perYear: 12 },
 ];
+
+const CADENCE_SHORT: Record<string, string> = {
+  weekly: "wk", biweekly: "2wk", monthly: "mo", annually: "yr",
+};
 
 function perPeriod(monthlyAmount: number, period: PayPeriod): number {
   const p = PAY_PERIODS.find((x) => x.key === period)!;
   return (monthlyAmount * 12) / p.perYear;
 }
 
-const fmt = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD" });
+const fmt      = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD" });
 const fmtShort = (n: number) => "$" + n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
-function PaycheckCard({ monthlyIncome, fixedBills, savingsGoal, groceryBudget }: {
-  monthlyIncome: number; fixedBills: number; savingsGoal: number; groceryBudget: number;
+function PaycheckCard({ monthlyIncome, savingsGoal, groceryBudget, bills }: {
+  monthlyIncome: number; savingsGoal: number; groceryBudget: number; bills: Bill[];
 }) {
   const [period, setPeriod] = useState<PayPeriod>(() => {
     try { return (localStorage.getItem("pay-period") as PayPeriod) ?? "biweekly"; } catch { return "biweekly"; }
   });
+  const [selectedBillIds, setSelectedBillIds] = useState<Set<string>>(new Set());
+  const [billPickerOpen, setBillPickerOpen] = useState(true);
 
   function selectPeriod(p: PayPeriod) {
     setPeriod(p);
     try { localStorage.setItem("pay-period", p); } catch { /* ignore */ }
   }
 
-  const income    = perPeriod(monthlyIncome, period);
-  const bills     = perPeriod(fixedBills, period);
-  const savings   = perPeriod(savingsGoal, period);
-  const groceries = perPeriod(groceryBudget, period);
-  const totalOut  = bills + savings + groceries;
-  const leftover  = income - totalOut;
-  const isShort   = leftover < 0;
+  function toggleBill(id: string) {
+    setSelectedBillIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
 
-  // Biweekly bonus month note
-  const bonusMonths = period === "biweekly"
-    ? Math.round((26 * (income) - 12 * monthlyIncome) / income * 10) / 10
-    : null;
+  function selectAllBills() {
+    setSelectedBillIds(new Set(bills.map((b) => b.id)));
+  }
+
+  const income        = perPeriod(monthlyIncome, period);
+  const savings       = perPeriod(savingsGoal, period);
+  const groceries     = perPeriod(groceryBudget, period);
+  const selectedBills = bills.filter((b) => selectedBillIds.has(b.id));
+  const billsTotal    = selectedBills.reduce((s, b) => s + b.amount, 0);
+  const totalOut      = billsTotal + savings + groceries;
+  const leftover      = income - totalOut;
+  const isShort       = leftover < 0;
+  const periodLabel   = PAY_PERIODS.find((p2) => p2.key === period)!.label.toLowerCase();
 
   const rows = [
-    { label: "Bills",        amount: bills,     color: "var(--blush-400)"    },
-    { label: "Savings",      amount: savings,   color: "var(--lavender-400)" },
-    { label: "Groceries",    amount: groceries, color: "var(--honey-400)"    },
+    { label: `Bills (${selectedBills.length} selected)`, amount: billsTotal,  color: "var(--blush-400)"    },
+    { label: "Savings",                                   amount: savings,     color: "var(--lavender-400)" },
+    { label: "Groceries",                                 amount: groceries,   color: "var(--honey-400)"    },
   ].filter((r) => r.amount > 0);
-
-  const periodLabel = PAY_PERIODS.find((p2) => p2.key === period)!.label.toLowerCase();
 
   return (
     <div className="card animate-fade-up delay-100">
@@ -78,23 +99,7 @@ function PaycheckCard({ monthlyIncome, fixedBills, savingsGoal, groceryBudget }:
           <p style={{ fontSize: "0.8125rem", color: "var(--color-muted)", marginBottom: "0.5rem", fontWeight: 600 }}>How often do you get paid?</p>
           <div style={{ display: "flex", gap: "0.375rem", flexWrap: "wrap" }}>
             {PAY_PERIODS.map(({ key, label }) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => selectPeriod(key)}
-                style={{
-                  padding: "0.4375rem 0.875rem",
-                  borderRadius: "0.75rem",
-                  border: "1px solid",
-                  borderColor: period === key ? "var(--honey-400)" : "var(--cream-300)",
-                  background: period === key ? "var(--honey-100)" : "white",
-                  fontWeight: 700,
-                  fontSize: "0.8125rem",
-                  color: period === key ? "var(--honey-800)" : "var(--color-muted)",
-                  cursor: "pointer",
-                  transition: "all 0.15s",
-                }}
-              >
+              <button key={key} type="button" onClick={() => selectPeriod(key)} style={{ padding: "0.4375rem 0.875rem", borderRadius: "0.75rem", border: "1px solid", borderColor: period === key ? "var(--honey-400)" : "var(--cream-300)", background: period === key ? "var(--honey-100)" : "white", fontWeight: 700, fontSize: "0.8125rem", color: period === key ? "var(--honey-800)" : "var(--color-muted)", cursor: "pointer", transition: "all 0.15s" }}>
                 {label}
               </button>
             ))}
@@ -120,18 +125,73 @@ function PaycheckCard({ monthlyIncome, fixedBills, savingsGoal, groceryBudget }:
               </p>
             </div>
 
+            {/* Bill picker */}
+            {bills.length > 0 && (
+              <div style={{ border: "1px solid var(--cream-200)", borderRadius: "0.875rem", overflow: "hidden" }}>
+                <button
+                  type="button"
+                  onClick={() => setBillPickerOpen((v) => !v)}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "0.75rem 1rem", background: "var(--cream-100)", border: "none", cursor: "pointer" }}
+                >
+                  <div>
+                    <span style={{ fontWeight: 700, fontSize: "0.875rem", color: "var(--color-fg)" }}>
+                      Which bills are due this {periodLabel} check?
+                    </span>
+                    <span style={{ marginLeft: "0.5rem", fontSize: "0.75rem", color: "var(--color-muted)" }}>
+                      {selectedBills.length} of {bills.length} · {fmtShort(billsTotal)}
+                    </span>
+                  </div>
+                  {billPickerOpen
+                    ? <ChevronUp style={{ width: "1rem", height: "1rem", color: "var(--color-muted)", flexShrink: 0 }} />
+                    : <ChevronDown style={{ width: "1rem", height: "1rem", color: "var(--color-muted)", flexShrink: 0 }} />
+                  }
+                </button>
+
+                {billPickerOpen && (
+                  <div style={{ padding: "0.5rem 1rem 0.75rem" }}>
+                    <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "0.375rem" }}>
+                      <button
+                        type="button"
+                        onClick={() => selectedBillIds.size === bills.length ? setSelectedBillIds(new Set()) : selectAllBills()}
+                        style={{ fontSize: "0.75rem", color: "var(--blush-700)", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}
+                      >
+                        {selectedBillIds.size === bills.length ? "Deselect all" : "Select all"}
+                      </button>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.125rem" }}>
+                      {bills.map((bill) => {
+                        const checked = selectedBillIds.has(bill.id);
+                        return (
+                          <label
+                            key={bill.id}
+                            style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.5rem 0.5rem", borderRadius: "0.625rem", cursor: "pointer", background: checked ? "var(--blush-50)" : "transparent", border: "1px solid", borderColor: checked ? "var(--blush-200)" : "transparent" }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleBill(bill.id)}
+                              style={{ accentColor: "var(--blush-600)", width: "1rem", height: "1rem", flexShrink: 0 }}
+                            />
+                            <span style={{ flex: 1, fontSize: "0.875rem", fontWeight: 500, color: "var(--color-fg)" }}>{bill.name}</span>
+                            <span style={{ fontSize: "0.75rem", color: "var(--color-muted)" }}>{CADENCE_SHORT[bill.cadence] ?? bill.cadence}</span>
+                            <span style={{ fontWeight: 700, fontSize: "0.9375rem", color: checked ? "var(--blush-700)" : "var(--color-fg)", fontVariantNumeric: "tabular-nums" }}>
+                              ${bill.amount.toFixed(2)}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Breakdown rows */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
+            <div style={{ display: "flex", flexDirection: "column" }}>
               {rows.map(({ label, amount, color }, idx) => {
                 const pct = income > 0 ? Math.min(100, (amount / income) * 100) : 0;
                 return (
-                  <div
-                    key={label}
-                    style={{
-                      padding: "0.75rem 0",
-                      borderBottom: idx < rows.length - 1 ? "1px solid var(--cream-200)" : "none",
-                    }}
-                  >
+                  <div key={label} style={{ padding: "0.75rem 0", borderBottom: idx < rows.length - 1 ? "1px solid var(--cream-200)" : "none" }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.375rem" }}>
                       <span style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.875rem", color: "var(--color-muted)" }}>
                         <span style={{ width: "0.5rem", height: "0.5rem", borderRadius: "50%", background: color, flexShrink: 0 }} />
@@ -150,14 +210,14 @@ function PaycheckCard({ monthlyIncome, fixedBills, savingsGoal, groceryBudget }:
               })}
             </div>
 
-            {/* Total out */}
+            {/* Leftover */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.75rem 1rem", borderRadius: "0.875rem", background: isShort ? "var(--blush-50)" : "var(--sage-50)", border: "1px solid", borderColor: isShort ? "var(--blush-200)" : "var(--sage-200)" }}>
               <div>
                 <p style={{ fontSize: "0.8125rem", fontWeight: 700, color: isShort ? "var(--blush-700)" : "var(--sage-700)" }}>
-                  {isShort ? "Short each paycheck" : "Left after necessities"}
+                  {isShort ? "Short this paycheck" : "Left after this check"}
                 </p>
                 <p style={{ fontSize: "0.75rem", color: "var(--color-muted)", marginTop: "0.125rem" }}>
-                  {fmtShort(income)} − {fmtShort(totalOut)} committed
+                  {fmtShort(income)} income − {fmtShort(totalOut)} committed
                 </p>
               </div>
               <p style={{ fontSize: "1.75rem", fontWeight: 900, letterSpacing: "-0.03em", color: isShort ? "var(--blush-700)" : "var(--sage-700)" }}>
@@ -165,20 +225,20 @@ function PaycheckCard({ monthlyIncome, fixedBills, savingsGoal, groceryBudget }:
               </p>
             </div>
 
-            {/* Biweekly bonus month note */}
-            {period === "biweekly" && bonusMonths !== null && (
+            {/* Biweekly bonus note */}
+            {period === "biweekly" && (
               <div style={{ fontSize: "0.8125rem", color: "var(--color-muted)", background: "var(--honey-50)", border: "1px solid var(--honey-200)", borderRadius: "0.75rem", padding: "0.625rem 0.875rem", lineHeight: 1.5 }}>
                 🎉 <strong style={{ color: "var(--honey-800)" }}>Bonus paycheck months:</strong> Biweekly workers get 2 extra paychecks per year (~{fmtShort(income * 2)} extra). Great for debt, savings, or a buffer.
               </div>
             )}
 
-            {/* Annual view */}
+            {/* Quick reference */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
               {[
-                { label: `${PAY_PERIODS.find((p2) => p2.key === period)!.label} take-home`, value: fmtShort(income) },
-                { label: "Annual take-home", value: fmtShort(monthlyIncome * 12) },
-                { label: `${periodLabel} bills`, value: fmtShort(bills) },
-                { label: "Annual bills", value: fmtShort(fixedBills * 12) },
+                { label: `${PAY_PERIODS.find((p2) => p2.key === period)!.label} income`,  value: fmtShort(income) },
+                { label: "Annual income",  value: fmtShort(monthlyIncome * 12) },
+                { label: `${periodLabel} savings`, value: fmtShort(savings) },
+                { label: "Annual savings", value: fmtShort(savingsGoal * 12) },
               ].map(({ label, value }) => (
                 <div key={label} style={{ background: "var(--cream-100)", borderRadius: "0.625rem", padding: "0.625rem 0.75rem" }}>
                   <p style={{ fontSize: "0.6875rem", color: "var(--color-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</p>
@@ -195,6 +255,7 @@ function PaycheckCard({ monthlyIncome, fixedBills, savingsGoal, groceryBudget }:
 
 export default function BudgetPage() {
   const [data, setData] = useState<BudgetData | null>(null);
+  const [bills, setBills] = useState<Bill[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -206,13 +267,18 @@ export default function BudgetPage() {
   const fetchBudget = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/budget");
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-      setData(json);
-      setGroceryPercent(json.groceryPercent);
-      setSavingsGoal(json.savingsGoal);
-      setSavingsGoalInput(String(json.savingsGoal));
+      const [budgetRes, billsRes] = await Promise.all([
+        fetch("/api/budget"),
+        fetch("/api/bills"),
+      ]);
+      const budgetJson = await budgetRes.json();
+      const billsJson  = await billsRes.json();
+      if (!budgetRes.ok) throw new Error(budgetJson.error);
+      setData(budgetJson);
+      setGroceryPercent(budgetJson.groceryPercent);
+      setSavingsGoal(budgetJson.savingsGoal);
+      setSavingsGoalInput(String(budgetJson.savingsGoal));
+      if (billsRes.ok) setBills(billsJson.bills ?? []);
     } catch { setError("Failed to load budget data."); }
     finally { setIsLoading(false); }
   }, []);
@@ -224,9 +290,9 @@ export default function BudgetPage() {
   const flexible      = Math.max(0, monthlyIncome - fixedBills - savingsGoal);
   const groceryBudget = Math.max(0, flexible * (groceryPercent / 100));
 
-  const billsPct    = monthlyIncome > 0 ? Math.min(100, (fixedBills    / monthlyIncome) * 100) : 0;
-  const savingsPct  = monthlyIncome > 0 ? Math.min(100, (savingsGoal   / monthlyIncome) * 100) : 0;
-  const groceryPct  = monthlyIncome > 0 ? Math.min(100, (groceryBudget / monthlyIncome) * 100) : 0;
+  const billsPct   = monthlyIncome > 0 ? Math.min(100, (fixedBills    / monthlyIncome) * 100) : 0;
+  const savingsPct = monthlyIncome > 0 ? Math.min(100, (savingsGoal   / monthlyIncome) * 100) : 0;
+  const groceryPct = monthlyIncome > 0 ? Math.min(100, (groceryBudget / monthlyIncome) * 100) : 0;
 
   async function handleSave() {
     setIsSaving(true); setSaveSuccess(false); setError(null);
@@ -258,11 +324,11 @@ export default function BudgetPage() {
   }
 
   const breakdownRows = [
-    { label: "Income",         amount: monthlyIncome,                            color: "var(--sage-400)",     positive: true  },
-    { label: "Fixed bills",    amount: -fixedBills,                              color: "var(--blush-400)",    positive: false },
-    { label: "Savings goal",   amount: -savingsGoal,                             color: "var(--lavender-400)", positive: false },
-    { label: "Grocery budget", amount: -groceryBudget,                           color: "var(--honey-400)",    positive: false },
-    { label: "Other flexible", amount: Math.max(0, flexible - groceryBudget),   color: "var(--cream-400)",    positive: true  },
+    { label: "Income",         amount: monthlyIncome,                          color: "var(--sage-400)",     positive: true  },
+    { label: "Fixed bills",    amount: -fixedBills,                            color: "var(--blush-400)",    positive: false },
+    { label: "Savings goal",   amount: -savingsGoal,                           color: "var(--lavender-400)", positive: false },
+    { label: "Grocery budget", amount: -groceryBudget,                         color: "var(--honey-400)",    positive: false },
+    { label: "Other flexible", amount: Math.max(0, flexible - groceryBudget), color: "var(--cream-400)",    positive: true  },
   ];
 
   return (
@@ -290,9 +356,9 @@ export default function BudgetPage() {
         {/* Paycheck budget */}
         <PaycheckCard
           monthlyIncome={monthlyIncome}
-          fixedBills={fixedBills}
           savingsGoal={savingsGoal}
           groceryBudget={groceryBudget}
+          bills={bills}
         />
 
         {/* Fixed bills */}
@@ -375,10 +441,7 @@ export default function BudgetPage() {
                 {groceryPercent}% × {fmt(flexible)} flexible = {fmt(groceryBudget)}/mo
               </p>
               <div className="progress-track" style={{ marginTop: "0.75rem" }}>
-                <div
-                  className="progress-fill"
-                  style={{ width: `${groceryPct}%`, background: "linear-gradient(to right, #f9cf6b, #c9b8e8)" }}
-                />
+                <div className="progress-fill" style={{ width: `${groceryPct}%`, background: "linear-gradient(to right, #f9cf6b, #c9b8e8)" }} />
               </div>
             </div>
           </div>

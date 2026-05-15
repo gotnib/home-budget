@@ -54,9 +54,10 @@ export async function POST(request: NextRequest) {
 
 Requirements:
 - Practical family-friendly meals scaled to the household size
+- Every meal must be freshly prepared — NEVER use "Leftovers", "Leftover [X]", or any variation as a meal. Plan the right portions so there are no designated leftover nights.
 - Variety across the plan (avoid repeating the same meal)
 - Mix of quick weekday meals and more involved weekend meals
-- Kid-friendly options when children are present${budget ? `\n- Keep total estimated grocery cost within the $${budget} budget` : ""}${store ? `\n- Prefer ingredients commonly available at ${store}` : ""}
+- Kid-friendly options when children are present${budget ? `\n- STRICT BUDGET: Design meals so the total grocery cost stays within $${budget}. Choose economical proteins, use pantry staples, and plan meals that share ingredients to reduce cost.` : ""}${store ? `\n- Prefer ingredients commonly available at ${store}` : ""}
 
 Respond ONLY with a JSON array (no markdown, no explanation) covering exactly ${totalDays} days:
 [
@@ -64,7 +65,7 @@ Respond ONLY with a JSON array (no markdown, no explanation) covering exactly ${
   ...
 ]
 
-Keep meal names short and clear (3-5 words max each).`,
+Keep meal names short and clear (3-5 words max each). Never include the word "Leftover" in any meal name.`,
         },
       ],
     });
