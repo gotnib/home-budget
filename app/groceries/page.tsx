@@ -166,6 +166,7 @@ export default function GroceriesPage() {
   const [recipeLoading, setRecipeLoading] = useState(false);
   const [recipeError, setRecipeError] = useState<string | null>(null);
   const [recipeAddingIngredients, setRecipeAddingIngredients] = useState(false);
+  const [recipeSelected, setRecipeSelected] = useState<Set<number>>(new Set());
   const recipeCache = useRef<Map<string, RecipeData>>(new Map());
 
   const nameRef = useRef<HTMLInputElement>(null);
@@ -438,7 +439,7 @@ export default function GroceriesPage() {
     setRecipeTarget(meal);
     setRecipeError(null);
     const cached = recipeCache.current.get(meal);
-    if (cached) { setRecipe(cached); return; }
+    if (cached) { setRecipe(cached); setRecipeSelected(new Set(cached.ingredients.map((_, i) => i))); return; }
     setRecipe(null);
     setRecipeLoading(true);
     try {
@@ -451,6 +452,7 @@ export default function GroceriesPage() {
       if (!res.ok) throw new Error(data.error ?? "Failed to load recipe");
       recipeCache.current.set(meal, data.recipe);
       setRecipe(data.recipe);
+      setRecipeSelected(new Set(data.recipe.ingredients.map((_: unknown, i: number) => i)));
     } catch (err) {
       setRecipeError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -460,17 +462,15 @@ export default function GroceriesPage() {
 
   async function handleAddRecipeIngredients() {
     if (!recipe) return;
+    const toAdd = recipe.ingredients.filter((_, i) => recipeSelected.has(i));
+    if (!toAdd.length) return;
     setRecipeAddingIngredients(true);
     try {
       await fetch("/api/groceries/cart/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          items: recipe.ingredients.map((ing) => ({
-            name: `${ing.item}`,
-            quantity: 1,
-            estimatedPrice: null,
-          })),
+          items: toAdd.map((ing) => ({ name: ing.item, quantity: 1, estimatedPrice: null })),
         }),
       });
       await fetchItems();
@@ -1290,13 +1290,39 @@ export default function GroceriesPage() {
                   </div>
 
                   <div>
-                    <p style={{ fontWeight: 700, fontSize: "0.875rem", color: "var(--color-fg)", marginBottom: "0.5rem" }}>Ingredients</p>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+                      <p style={{ fontWeight: 700, fontSize: "0.875rem", color: "var(--color-fg)" }}>Ingredients</p>
+                      <button
+                        type="button"
+                        onClick={() => setRecipeSelected(
+                          recipeSelected.size === recipe.ingredients.length
+                            ? new Set()
+                            : new Set(recipe.ingredients.map((_, i) => i))
+                        )}
+                        style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--honey-700)", background: "none", border: "none", cursor: "pointer" }}
+                      >
+                        {recipeSelected.size === recipe.ingredients.length ? "Deselect all" : "Select all"}
+                      </button>
+                    </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
                       {recipe.ingredients.map((ing, i) => (
-                        <div key={i} className="recipe-ingredient-row">
+                        <label
+                          key={i}
+                          style={{ display: "flex", alignItems: "center", gap: "0.625rem", padding: "0.375rem 0.5rem", borderRadius: "0.5rem", cursor: "pointer", background: recipeSelected.has(i) ? "var(--honey-50)" : "transparent", transition: "background 0.1s" }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={recipeSelected.has(i)}
+                            onChange={() => {
+                              const next = new Set(recipeSelected);
+                              next.has(i) ? next.delete(i) : next.add(i);
+                              setRecipeSelected(next);
+                            }}
+                            style={{ width: "1rem", height: "1rem", accentColor: "var(--honey-500)", flexShrink: 0, cursor: "pointer" }}
+                          />
                           <span className="recipe-ingredient-amount">{ing.amount}</span>
                           <span style={{ fontSize: "0.875rem", color: "var(--color-fg)" }}>{ing.item}</span>
-                        </div>
+                        </label>
                       ))}
                     </div>
                   </div>
@@ -1321,13 +1347,13 @@ export default function GroceriesPage() {
                 <button
                   type="button"
                   onClick={handleAddRecipeIngredients}
-                  disabled={recipeAddingIngredients}
+                  disabled={recipeAddingIngredients || recipeSelected.size === 0}
                   className="btn btn--honey"
                   style={{ flex: 1, gap: "0.5rem", fontSize: "0.875rem" }}
                 >
                   {recipeAddingIngredients
                     ? <><Loader2 style={{ width: "0.875rem", height: "0.875rem", animation: "spin 1s linear infinite" }} /> Adding…</>
-                    : <><Plus style={{ width: "0.875rem", height: "0.875rem" }} /> Add ingredients to list</>
+                    : <><Plus style={{ width: "0.875rem", height: "0.875rem" }} /> Add {recipeSelected.size} ingredient{recipeSelected.size !== 1 ? "s" : ""} to list</>
                   }
                 </button>
               </div>
