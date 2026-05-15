@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import Anthropic from "@anthropic-ai/sdk";
 import { normalizeToMonthly, calculateGroceryBudget } from "@/lib/budget";
+
+export const maxDuration = 60;
 import type { MealPlan } from "../meal-plan/route";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
