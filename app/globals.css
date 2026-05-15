@@ -1070,15 +1070,16 @@ img { max-width: 100%; height: auto; }
 /* Stat grid (4 cards) */
 .stat-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 0.75rem;
 }
-@media (min-width: 640px) { .stat-grid { gap: 1rem; } }
+@media (min-width: 640px) { .stat-grid { grid-template-columns: 1fr 1fr; gap: 1rem; } }
 @media (min-width: 1024px) { .stat-grid { grid-template-columns: repeat(4, 1fr); } }
 
 .stat-grid-wide {
-  grid-column: span 2;
+  grid-column: span 1;
 }
+@media (min-width: 640px) { .stat-grid-wide { grid-column: span 2; } }
 @media (min-width: 1024px) { .stat-grid-wide { grid-column: span 1; } }
 
 /* Quick links */

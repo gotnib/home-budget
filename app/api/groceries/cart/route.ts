@@ -36,16 +36,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await request.json();
-    const { name, quantity = 1, estimatedPrice } = body;
+    const { name, quantity = 1, estimatedPrice, status: reqStatus } = body;
 
     if (!name || typeof name !== "string") {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
-    // Upsert by name (if same item already exists, update quantity)
-    const existing = await prisma.groceryItem.findFirst({
-      where: { userId: user.id, name, status: "planned" },
-    });
+    const itemStatus = reqStatus === "purchased" ? "purchased" : "planned";
+
+    // Upsert by name only for planned items
+    const existing = itemStatus === "planned"
+      ? await prisma.groceryItem.findFirst({ where: { userId: user.id, name, status: "planned" } })
+      : null;
 
     let item;
     if (existing) {
@@ -63,7 +65,7 @@ export async function POST(request: NextRequest) {
           name,
           quantity: quantity ?? 1,
           estimatedPrice: estimatedPrice ?? null,
-          status: "planned",
+          status: itemStatus,
         },
       });
     }
