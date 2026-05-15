@@ -408,14 +408,31 @@ export default function BillsPage() {
                   const over = isOverdue(bill.dueDay, bill.cadence, paid);
                   const soon = isDueSoon(bill.dueDay, bill.cadence, paid);
                   const isEditing = editingId === bill.id;
-                  const dueLabel = dueDateLabel(bill.dueDay, bill.cadence);
-                  const nextDue = nextDueDate(bill.dueDay, bill.cadence);
 
-                  // Days until due (for monthly bills only)
+                  // For overdue bills: use THIS month's actual past date, not next month
+                  const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                  let dueLabelStr: string | null = null;
                   let daysUntil: number | null = null;
-                  if (nextDue && bill.cadence === "monthly") {
-                    const diff = Math.round((nextDue.getTime() - new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()) / 86400000);
-                    daysUntil = diff;
+                  let daysAgo: number | null = null;
+
+                  if (bill.dueDay != null && bill.cadence === "monthly") {
+                    if (over) {
+                      // Past due this month
+                      const y = today.getFullYear(), m = today.getMonth();
+                      const daysInMonth = new Date(y, m + 1, 0).getDate();
+                      const pastDate = new Date(y, m, Math.min(bill.dueDay, daysInMonth));
+                      dueLabelStr = `${SHORT_MONTHS[pastDate.getMonth()]} ${pastDate.getDate()}`;
+                      daysAgo = Math.round((todayMidnight.getTime() - pastDate.getTime()) / 86400000);
+                    } else {
+                      // Upcoming (this or next month)
+                      const upcoming = nextDueDate(bill.dueDay, bill.cadence);
+                      if (upcoming) {
+                        dueLabelStr = `${SHORT_MONTHS[upcoming.getMonth()]} ${upcoming.getDate()}`;
+                        daysUntil = Math.round((upcoming.getTime() - todayMidnight.getTime()) / 86400000);
+                      }
+                    }
+                  } else if (bill.dueDay != null) {
+                    dueLabelStr = `day ${bill.dueDay}`;
                   }
 
                   return (
@@ -483,17 +500,17 @@ export default function BillsPage() {
                             </div>
 
                             {/* Specific due date */}
-                            {bill.dueDay != null && (
+                            {dueLabelStr && (
                               <p style={{ marginTop: "0.2rem", fontSize: "0.8125rem", color: over ? "var(--blush-600)" : soon ? "var(--honey-700)" : paid ? "var(--sage-600)" : "var(--color-muted)", fontWeight: 500 }}>
                                 {paid
-                                  ? `Paid · was due ${dueLabel}`
+                                  ? `Paid · was due ${dueLabelStr}`
                                   : over
-                                    ? `Overdue · was due ${dueLabel} (${Math.abs(daysUntil ?? 0)}d ago)`
+                                    ? `Overdue · was due ${dueLabelStr}${daysAgo != null ? ` (${daysAgo}d ago)` : ""}`
                                     : daysUntil === 0
-                                      ? `Due today · ${dueLabel}`
+                                      ? `Due today · ${dueLabelStr}`
                                       : daysUntil === 1
-                                        ? `Due tomorrow · ${dueLabel}`
-                                        : `Due ${dueLabel}${daysUntil != null ? ` · in ${daysUntil}d` : ""}`
+                                        ? `Due tomorrow · ${dueLabelStr}`
+                                        : `Due ${dueLabelStr}${daysUntil != null ? ` · in ${daysUntil}d` : ""}`
                                 }
                               </p>
                             )}
