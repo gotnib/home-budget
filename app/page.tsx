@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, CheckCircle2, Eye, EyeOff, Heart, Home, Loader2, ShieldCheck, ShoppingCart, Sparkles, Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -29,6 +29,7 @@ export default function LandingPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const redirectingRef = useRef(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -37,6 +38,7 @@ export default function LandingPage() {
       if (mode === "signin") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        redirectingRef.current = true;
         router.push("/dashboard"); router.refresh();
       } else {
         const { error } = await supabase.auth.signUp({ email, password });
@@ -47,7 +49,7 @@ export default function LandingPage() {
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
-      setIsLoading(false);
+      if (!redirectingRef.current) setIsLoading(false);
     }
   }
 

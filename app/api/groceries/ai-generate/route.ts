@@ -84,6 +84,21 @@ Respond ONLY with a JSON array (no markdown, no explanation):
       }
     }
 
+    // Server-side budget enforcement: trim list until total ≤ budget
+    if (effectiveBudget && suggestions.length > 0) {
+      const total = () => suggestions.reduce((s, i) => s + i.quantity * i.estimatedPrice, 0);
+      while (total() > effectiveBudget + 0.01 && suggestions.length > 0) {
+        // Sort by line total descending so we reduce the most expensive item first
+        suggestions.sort((a, b) => b.quantity * b.estimatedPrice - a.quantity * a.estimatedPrice);
+        const top = suggestions[0];
+        if (top.quantity > 1) {
+          top.quantity--;
+        } else {
+          suggestions.shift();
+        }
+      }
+    }
+
     return NextResponse.json({ suggestions });
   } catch (error) {
     console.error("Honey generate error:", error);
