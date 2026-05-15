@@ -8,6 +8,7 @@ import { GroceryList } from "@/components/groceries/GroceryList";
 import { GroceryCart } from "@/components/groceries/GroceryCart";
 import { WalmartExportButton } from "@/components/groceries/WalmartExportButton";
 import { ManualGroceryItemForm } from "@/components/forms/ManualGroceryItemForm";
+import { AIGroceryButton } from "@/components/groceries/AIGroceryButton";
 
 interface GroceryItem {
   id: string;
@@ -100,8 +101,11 @@ export default function GroceriesPage() {
             <h1 className="page-title">Grocery List</h1>
             <p style={{ marginTop: "0.25rem", fontSize: "0.875rem", color: "var(--color-muted)" }}>Build your list, track your budget, export to Walmart.</p>
           </div>
-          <div style={{ display: "none" }} className="animate-fade-in delay-200" id="walmart-desktop">
-            <WalmartExportButton />
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <AIGroceryButton onAddItems={async (items) => { for (const item of items) await handleAddItem(item); }} />
+            <div style={{ display: "none" }} className="animate-fade-in delay-200" id="walmart-desktop">
+              <WalmartExportButton />
+            </div>
           </div>
         </div>
 

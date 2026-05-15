@@ -187,10 +187,20 @@ img { max-width: 100%; height: auto; }
   flex-direction: column;
   gap: 0.875rem;
 }
+@media (max-width: 767px) {
+  .page-container, .page-container--md, .page-container--sm {
+    padding-bottom: calc(68px + env(safe-area-inset-bottom) + 1.5rem);
+  }
+}
 @media (min-width: 640px) {
   .page-container, .page-container--md, .page-container--sm {
     padding: 1.5rem 1.5rem;
     gap: 1rem;
+  }
+}
+@media (min-width: 640px) and (max-width: 767px) {
+  .page-container, .page-container--md, .page-container--sm {
+    padding-bottom: calc(68px + env(safe-area-inset-bottom) + 1.5rem);
   }
 }
 @media (min-width: 1024px) {
@@ -1412,7 +1422,7 @@ img { max-width: 100%; height: auto; }
   }
 }
 
-/* Left hero panel — comes second on mobile */
+/* Left hero panel — comes second on mobile, hidden on very small screens */
 .landing-hero {
   position: relative;
   overflow: hidden;
@@ -1422,8 +1432,9 @@ img { max-width: 100%; height: auto; }
   box-shadow: var(--shadow-honey-lg);
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.7), var(--shadow-honey-lg);
   order: 2;
+  display: none;
 }
-@media (min-width: 640px) { .landing-hero { padding: 1.75rem; } }
+@media (min-width: 640px) { .landing-hero { display: block; padding: 1.75rem; } }
 @media (min-width: 1024px) { .landing-hero { padding: 2.5rem; order: 1; } }
 
 .landing-hero-blob1 {
@@ -1910,6 +1921,72 @@ img { max-width: 100%; height: auto; }
 }
 .search-result-name { font-weight: 500; flex: 1; min-width: 0; }
 .search-result-price { font-weight: 700; color: var(--color-fg); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* ── AI Grocery Modal ── */
+.ai-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(61,42,14,0.35);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+  animation: fade-in 0.2s ease;
+}
+@media (min-width: 640px) {
+  .ai-modal-backdrop {
+    align-items: center;
+    padding: 1rem;
+  }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.ai-modal {
+  background: white;
+  border-radius: 1.5rem 1.5rem 0 0;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: var(--shadow-soft-lg);
+  display: flex;
+  flex-direction: column;
+  max-height: 85dvh;
+  animation: slide-up 0.3s cubic-bezier(0.16,1,0.3,1);
+}
+@media (min-width: 640px) {
+  .ai-modal {
+    border-radius: 1.5rem;
+    max-height: 80dvh;
+    animation: scale-in 0.25s cubic-bezier(0.16,1,0.3,1);
+  }
+}
+@keyframes slide-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.ai-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.25rem 0;
+  flex-shrink: 0;
+}
+.ai-modal-body {
+  padding: 1rem 1.25rem;
+  overflow-y: auto;
+  flex: 1;
+}
+.ai-modal-footer {
+  display: flex;
+  gap: 0.625rem;
+  padding: 0.75rem 1.25rem;
+  border-top: 1px solid var(--cream-200);
+  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+  flex-shrink: 0;
+}
 
 /* ── Walmart Export ── */
 .walmart-btn {
