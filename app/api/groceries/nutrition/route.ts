@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export const maxDuration = 60;
 
@@ -23,6 +24,8 @@ export async function POST(request: NextRequest) {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!checkRateLimit(user.id, 10, 60 * 60 * 1000))
+      return NextResponse.json({ error: "Too many requests — please wait before fetching nutrition info." }, { status: 429 });
 
     const { meals, adults = 2, kids = 0 } = await request.json();
     if (!meals || !Array.isArray(meals) || meals.length === 0) {

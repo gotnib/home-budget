@@ -111,7 +111,7 @@ export async function PATCH(request: NextRequest) {
       updates.cadence = cadence;
     }
 
-    const bill = await prisma.bill.update({ where: { id }, data: updates });
+    const bill = await prisma.bill.update({ where: { id, userId: user.id }, data: updates });
     return NextResponse.json({ bill });
   } catch (error) {
     console.error("Update bill error:", error);
@@ -141,7 +141,7 @@ export async function DELETE(request: NextRequest) {
     if (!existing)
       return NextResponse.json({ error: "Bill not found" }, { status: 404 });
 
-    await prisma.bill.delete({ where: { id } });
+    await prisma.bill.delete({ where: { id, userId: user.id } });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Delete bill error:", error);

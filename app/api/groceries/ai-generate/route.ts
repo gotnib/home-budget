@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import Anthropic from "@anthropic-ai/sdk";
 import { normalizeToMonthly, calculateGroceryBudget } from "@/lib/budget";
+import { getHouseholdContext } from "@/lib/household";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export const maxDuration = 60;
 import type { MealPlan } from "../meal-plan/route";
@@ -14,15 +16,18 @@ export async function POST(request: NextRequest) {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!checkRateLimit(user.id, 10, 60 * 60 * 1000))
+      return NextResponse.json({ error: "Too many requests — please wait before generating another list." }, { status: 429 });
 
     const body = await request.json();
     const { mealPlan }: { mealPlan: MealPlan } = body;
     if (!mealPlan) return NextResponse.json({ error: "mealPlan is required" }, { status: 400 });
 
+    const { ownerId } = await getHouseholdContext(user.id);
     const [incomes, bills, budgetSettings] = await Promise.all([
-      prisma.income.findMany({ where: { userId: user.id } }),
-      prisma.bill.findMany({ where: { userId: user.id } }),
-      prisma.budgetSettings.findUnique({ where: { userId: user.id } }),
+      prisma.income.findMany({ where: { userId: ownerId } }),
+      prisma.bill.findMany({ where: { userId: ownerId } }),
+      prisma.budgetSettings.findUnique({ where: { userId: ownerId } }),
     ]);
 
     const monthlyIncome = incomes.reduce((s, i) => s + normalizeToMonthly(i.amount, i.cadence), 0);
