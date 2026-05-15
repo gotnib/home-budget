@@ -1,8 +1,14 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Loader2, Plus, Trash2, CheckCircle2, Circle, Sparkles, Receipt, X, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Loader2, Plus, Trash2, CheckCircle2, Circle,
+  Sparkles, Receipt, ChevronDown, ChevronUp,
+  Users, Baby, Calendar, ArrowRight, RotateCcw,
+  UtensilsCrossed,
+} from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
+import type { MealPlan, MealWeek } from "@/app/api/groceries/meal-plan/route";
 
 interface GroceryItem {
   id: string;
@@ -18,6 +24,79 @@ interface AISuggestion {
   estimatedPrice: number;
 }
 
+type AIStep = "configure" | "loading-plan" | "meal-plan" | "loading-list" | "list";
+
+const DURATION_OPTIONS = [
+  { label: "1 Week",  weeks: 1 },
+  { label: "2 Weeks", weeks: 2 },
+  { label: "3 Weeks", weeks: 3 },
+  { label: "1 Month", weeks: 4 },
+];
+
+function Counter({ value, onChange, min = 0, max = 10 }: { value: number; onChange: (n: number) => void; min?: number; max?: number }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+      <button
+        type="button"
+        onClick={() => onChange(Math.max(min, value - 1))}
+        disabled={value <= min}
+        style={{ width: "2rem", height: "2rem", borderRadius: "0.625rem", border: "1px solid var(--cream-300)", background: "white", fontWeight: 700, fontSize: "1.125rem", cursor: value <= min ? "default" : "pointer", color: value <= min ? "var(--cream-300)" : "var(--color-fg)", display: "flex", alignItems: "center", justifyContent: "center" }}
+      >−</button>
+      <span style={{ fontWeight: 700, fontSize: "1.125rem", minWidth: "1.5rem", textAlign: "center" }}>{value}</span>
+      <button
+        type="button"
+        onClick={() => onChange(Math.min(max, value + 1))}
+        disabled={value >= max}
+        style={{ width: "2rem", height: "2rem", borderRadius: "0.625rem", border: "1px solid var(--cream-300)", background: "white", fontWeight: 700, fontSize: "1.125rem", cursor: value >= max ? "default" : "pointer", color: value >= max ? "var(--cream-300)" : "var(--color-fg)", display: "flex", alignItems: "center", justifyContent: "center" }}
+      >+</button>
+    </div>
+  );
+}
+
+function MealWeekCard({ week }: { week: MealWeek }) {
+  const [open, setOpen] = useState(week.week === 1);
+  return (
+    <div style={{ border: "1px solid var(--cream-200)", borderRadius: "0.875rem", overflow: "hidden" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "0.75rem 1rem", background: "var(--cream-100)", border: "none", cursor: "pointer" }}
+      >
+        <span style={{ fontWeight: 700, fontSize: "0.9375rem", color: "var(--color-fg)" }}>
+          Week {week.week}
+        </span>
+        {open
+          ? <ChevronUp style={{ width: "1rem", height: "1rem", color: "var(--color-muted)" }} />
+          : <ChevronDown style={{ width: "1rem", height: "1rem", color: "var(--color-muted)" }} />
+        }
+      </button>
+      {open && (
+        <div>
+          {week.days.map((day, i) => (
+            <div
+              key={day.day}
+              style={{
+                padding: "0.625rem 1rem",
+                borderTop: "1px solid var(--cream-200)",
+                background: i % 2 === 0 ? "white" : "var(--honey-50)",
+              }}
+            >
+              <p style={{ fontWeight: 700, fontSize: "0.75rem", color: "var(--honey-700)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.375rem" }}>{day.day}</p>
+              <div style={{ display: "grid", gap: "0.25rem" }}>
+                {[["🌅", day.breakfast], ["☀️", day.lunch], ["🌙", day.dinner]].map(([emoji, meal]) => (
+                  <p key={emoji} style={{ fontSize: "0.8125rem", color: "var(--color-fg)" }}>
+                    <span style={{ marginRight: "0.375rem" }}>{emoji}</span>{meal}
+                  </p>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function GroceriesPage() {
   const [items, setItems] = useState<GroceryItem[]>([]);
   const [budget, setBudget] = useState(0);
@@ -29,9 +108,13 @@ export default function GroceriesPage() {
   const [newQty, setNewQty] = useState("1");
   const [addingItem, setAddingItem] = useState(false);
 
-  // AI prompt
-  const [aiPrompt, setAiPrompt] = useState("");
-  const [aiLoading, setAiLoading] = useState(false);
+  // AI flow
+  const [aiStep, setAiStep] = useState<AIStep>("configure");
+  const [aiWeeks, setAiWeeks] = useState(1);
+  const [aiAdults, setAiAdults] = useState(2);
+  const [aiKids, setAiKids] = useState(0);
+  const [aiNotes, setAiNotes] = useState("");
+  const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
   const [aiSuggestions, setAiSuggestions] = useState<AISuggestion[]>([]);
   const [aiSelected, setAiSelected] = useState<Set<number>>(new Set());
   const [aiAdding, setAiAdding] = useState(false);
@@ -102,26 +185,43 @@ export default function GroceriesPage() {
     setItems((prev) => prev.filter((i) => i.id !== id));
   }
 
-  async function handleAIGenerate() {
-    if (!aiPrompt.trim()) return;
-    setAiLoading(true);
+  async function handleBuildMealPlan() {
     setAiError(null);
-    setAiSuggestions([]);
-    setAiSelected(new Set());
+    setAiStep("loading-plan");
+    try {
+      const res = await fetch("/api/groceries/meal-plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ weeks: aiWeeks, adults: aiAdults, kids: aiKids, notes: aiNotes }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed");
+      setMealPlan(data.mealPlan);
+      setAiStep("meal-plan");
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : "Something went wrong");
+      setAiStep("configure");
+    }
+  }
+
+  async function handleBuildGroceryList() {
+    if (!mealPlan) return;
+    setAiError(null);
+    setAiStep("loading-list");
     try {
       const res = await fetch("/api/groceries/ai-generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: aiPrompt }),
+        body: JSON.stringify({ mealPlan }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed");
       setAiSuggestions(data.suggestions ?? []);
       setAiSelected(new Set(data.suggestions.map((_: AISuggestion, i: number) => i)));
+      setAiStep("list");
     } catch (err) {
       setAiError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
-      setAiLoading(false);
+      setAiStep("meal-plan");
     }
   }
 
@@ -137,8 +237,10 @@ export default function GroceriesPage() {
       });
     }
     await fetchItems();
+    setAiStep("configure");
+    setMealPlan(null);
     setAiSuggestions([]);
-    setAiPrompt("");
+    setAiNotes("");
     setAiAdding(false);
   }
 
@@ -159,12 +261,7 @@ export default function GroceriesPage() {
     await fetch("/api/groceries/cart", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: `Receipt: ${storeName}`,
-        quantity: 1,
-        estimatedPrice: amount,
-        status: "purchased",
-      }),
+      body: JSON.stringify({ name: `Receipt: ${storeName}`, quantity: 1, estimatedPrice: amount, status: "purchased" }),
     });
     setReceiptStore(""); setReceiptAmount("");
     await fetchItems();
@@ -193,6 +290,8 @@ export default function GroceriesPage() {
     );
   }
 
+  const isAILoading = aiStep === "loading-plan" || aiStep === "loading-list";
+
   return (
     <div className="app-layout">
       <Navbar />
@@ -208,91 +307,243 @@ export default function GroceriesPage() {
                 Budget: <strong style={{ color: "var(--color-fg)" }}>${budget.toFixed(0)}</strong>
               </span>
               <span style={{ fontSize: "0.875rem", color: isOver ? "var(--blush-700)" : "var(--sage-700)", fontWeight: 600 }}>
-                {isOver
-                  ? `$${(totalPurchased - budget).toFixed(2)} over`
-                  : `$${remaining?.toFixed(2)} remaining`}
+                {isOver ? `$${(totalPurchased - budget).toFixed(2)} over` : `$${remaining?.toFixed(2)} remaining`}
               </span>
             </div>
           )}
         </div>
 
-        {/* AI Prompt */}
+        {/* ── AI Meal Planner ── */}
         <div className="card animate-fade-up delay-50">
-          <div className="card-header">
-            <span className="icon-pill icon-pill--sage icon-pill--sm" style={{ marginRight: "0.5rem" }}>
-              <Sparkles style={{ width: "1rem", height: "1rem" }} />
-            </span>
-            <h3 className="card-title" style={{ display: "inline" }}>AI Grocery Builder</h3>
-          </div>
-          <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-            {aiSuggestions.length === 0 ? (
-              <>
-                <textarea
-                  value={aiPrompt}
-                  onChange={(e) => setAiPrompt(e.target.value)}
-                  placeholder='e.g. "Build a grocery list for a family of 5 with 3 small children, keep it under $150 at Food Lion"'
-                  rows={3}
-                  className="form-input"
-                  style={{ resize: "vertical", fontFamily: "inherit" }}
-                  disabled={aiLoading}
-                />
-                {aiError && <div role="alert" className="alert alert--error">{aiError}</div>}
-                <button
-                  type="button"
-                  onClick={handleAIGenerate}
-                  disabled={aiLoading || !aiPrompt.trim()}
-                  className="btn btn--sage"
-                  style={{ gap: "0.5rem", alignSelf: "flex-start" }}
-                >
-                  {aiLoading
-                    ? <><Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} /> Generating…</>
-                    : <><Sparkles style={{ width: "1rem", height: "1rem" }} /> Generate list</>
-                  }
-                </button>
-              </>
-            ) : (
-              <>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <p style={{ fontSize: "0.8125rem", color: "var(--color-muted)" }}>
-                    {aiSelected.size} of {aiSuggestions.length} selected · est. ${aiTotal.toFixed(2)}
-                  </p>
-                  <div style={{ display: "flex", gap: "0.5rem" }}>
-                    <button type="button" onClick={() => setAiSelected(aiSelected.size === aiSuggestions.length ? new Set() : new Set(aiSuggestions.map((_, i) => i)))} style={{ fontSize: "0.75rem", color: "var(--sage-700)", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
-                      {aiSelected.size === aiSuggestions.length ? "Deselect all" : "Select all"}
-                    </button>
-                    <button type="button" onClick={() => { setAiSuggestions([]); setAiPrompt(""); }} style={{ fontSize: "0.75rem", color: "var(--color-muted)", background: "none", border: "none", cursor: "pointer" }}>
-                      <X style={{ width: "0.875rem", height: "0.875rem" }} />
-                    </button>
-                  </div>
-                </div>
 
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem", maxHeight: "16rem", overflowY: "auto" }}>
-                  {aiSuggestions.map((item, i) => (
-                    <label key={i} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.5rem 0.625rem", borderRadius: "0.625rem", cursor: "pointer", border: "1px solid", borderColor: aiSelected.has(i) ? "var(--sage-300)" : "var(--cream-200)", background: aiSelected.has(i) ? "var(--sage-50)" : "white" }}>
-                      <input type="checkbox" checked={aiSelected.has(i)} onChange={() => toggleAI(i)} style={{ accentColor: "var(--sage-600)", width: "1rem", height: "1rem", flexShrink: 0 }} />
-                      <span style={{ flex: 1, fontSize: "0.875rem", fontWeight: 500 }}>{item.name}</span>
-                      <span style={{ fontSize: "0.75rem", color: "var(--color-muted)" }}>×{item.quantity}</span>
-                      <span style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--sage-700)" }}>${(item.estimatedPrice * item.quantity).toFixed(2)}</span>
-                    </label>
+          {/* Step indicator */}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "1rem 1.25rem 0" }}>
+            {(["configure", "meal-plan", "list"] as const).map((s, i) => {
+              const stepIndex = ["configure","loading-plan","meal-plan","loading-list","list"].indexOf(aiStep);
+              const thisIndex = i * 2;
+              const done = stepIndex > thisIndex;
+              const active = stepIndex === thisIndex || (i === 1 && stepIndex === 3) || (i === 0 && stepIndex === 1);
+              return (
+                <div key={s} style={{ display: "flex", alignItems: "center", gap: "0.5rem", flex: i < 2 ? 1 : undefined }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}>
+                    <div style={{ width: "1.5rem", height: "1.5rem", borderRadius: "50%", background: done ? "var(--sage-500)" : active ? "var(--honey-500)" : "var(--cream-300)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <span style={{ fontSize: "0.6875rem", fontWeight: 700, color: done || active ? "white" : "var(--color-muted)" }}>{i + 1}</span>
+                    </div>
+                    <span style={{ fontSize: "0.75rem", fontWeight: 600, color: active ? "var(--color-fg)" : done ? "var(--sage-700)" : "var(--color-muted)", whiteSpace: "nowrap" }}>
+                      {s === "configure" ? "Plan" : s === "meal-plan" ? "Meals" : "List"}
+                    </span>
+                  </div>
+                  {i < 2 && <div style={{ flex: 1, height: "1px", background: done ? "var(--sage-300)" : "var(--cream-300)", margin: "0 0.25rem" }} />}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Step 1: Configure */}
+          {(aiStep === "configure" || aiStep === "loading-plan") && (
+            <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <span className="icon-pill icon-pill--sage icon-pill--sm">
+                  <Sparkles style={{ width: "1rem", height: "1rem" }} />
+                </span>
+                <h3 className="card-title" style={{ display: "inline" }}>AI Meal Planner</h3>
+              </div>
+
+              {/* Duration */}
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.625rem" }}>
+                  <Calendar style={{ width: "1rem", height: "1rem", color: "var(--honey-600)" }} />
+                  <label style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--color-fg)" }}>How long?</label>
+                </div>
+                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                  {DURATION_OPTIONS.map(({ label, weeks }) => (
+                    <button
+                      key={weeks}
+                      type="button"
+                      onClick={() => setAiWeeks(weeks)}
+                      disabled={isAILoading}
+                      style={{
+                        padding: "0.5rem 1rem",
+                        borderRadius: "0.75rem",
+                        border: "1px solid",
+                        borderColor: aiWeeks === weeks ? "var(--honey-400)" : "var(--cream-300)",
+                        background: aiWeeks === weeks ? "var(--honey-100)" : "white",
+                        fontWeight: 700,
+                        fontSize: "0.875rem",
+                        color: aiWeeks === weeks ? "var(--honey-800)" : "var(--color-muted)",
+                        cursor: isAILoading ? "default" : "pointer",
+                        transition: "all 0.15s",
+                      }}
+                    >
+                      {label}
+                    </button>
                   ))}
                 </div>
+              </div>
 
+              {/* Adults */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <Users style={{ width: "1rem", height: "1rem", color: "var(--sage-600)" }} />
+                  <label style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--color-fg)" }}>Adults</label>
+                </div>
+                <Counter value={aiAdults} onChange={setAiAdults} min={1} max={10} />
+              </div>
+
+              {/* Kids */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <Baby style={{ width: "1rem", height: "1rem", color: "var(--blush-600)" }} />
+                  <label style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--color-fg)" }}>Kids</label>
+                </div>
+                <Counter value={aiKids} onChange={setAiKids} min={0} max={10} />
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--color-fg)", display: "block", marginBottom: "0.5rem" }}>
+                  Dietary notes <span style={{ fontWeight: 400, color: "var(--color-muted)" }}>(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={aiNotes}
+                  onChange={(e) => setAiNotes(e.target.value)}
+                  placeholder='e.g. "no pork, nut allergy, prefer Mediterranean"'
+                  className="form-input"
+                  disabled={isAILoading}
+                />
+              </div>
+
+              {aiError && <div role="alert" className="alert alert--error">{aiError}</div>}
+
+              <button
+                type="button"
+                onClick={handleBuildMealPlan}
+                disabled={isAILoading}
+                className="btn btn--honey"
+                style={{ gap: "0.5rem" }}
+              >
+                {aiStep === "loading-plan"
+                  ? <><Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} /> Building meal plan…</>
+                  : <><UtensilsCrossed style={{ width: "1rem", height: "1rem" }} /> Build meal plan</>
+                }
+              </button>
+            </div>
+          )}
+
+          {/* Step 2: Meal Plan */}
+          {(aiStep === "meal-plan" || aiStep === "loading-list") && mealPlan && (
+            <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div>
+                  <h3 className="card-title">Your meal plan</h3>
+                  <p style={{ fontSize: "0.8125rem", color: "var(--color-muted)", marginTop: "0.125rem" }}>
+                    {mealPlan.totalDays} days · {mealPlan.adults} adult{mealPlan.adults > 1 ? "s" : ""}
+                    {mealPlan.kids > 0 ? ` · ${mealPlan.kids} kid${mealPlan.kids > 1 ? "s" : ""}` : ""}
+                  </p>
+                </div>
                 <button
                   type="button"
-                  onClick={handleAIAdd}
-                  disabled={aiSelected.size === 0 || aiAdding}
-                  className="btn btn--sage"
-                  style={{ gap: "0.5rem", alignSelf: "flex-start" }}
+                  onClick={() => { setAiStep("configure"); setMealPlan(null); }}
+                  style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontSize: "0.8125rem", color: "var(--color-muted)", background: "none", border: "none", cursor: "pointer" }}
                 >
-                  {aiAdding
-                    ? <Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} />
-                    : <Plus style={{ width: "1rem", height: "1rem" }} />
-                  }
-                  Add {aiSelected.size} item{aiSelected.size !== 1 ? "s" : ""} to list
+                  <RotateCcw style={{ width: "0.875rem", height: "0.875rem" }} /> Start over
                 </button>
-              </>
-            )}
-          </div>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                {mealPlan.weeks.map((week) => (
+                  <MealWeekCard key={week.week} week={week} />
+                ))}
+              </div>
+
+              {aiError && <div role="alert" className="alert alert--error">{aiError}</div>}
+
+              <button
+                type="button"
+                onClick={handleBuildGroceryList}
+                disabled={aiStep === "loading-list"}
+                className="btn btn--sage"
+                style={{ gap: "0.5rem" }}
+              >
+                {aiStep === "loading-list"
+                  ? <><Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} /> Building grocery list…</>
+                  : <><ArrowRight style={{ width: "1rem", height: "1rem" }} /> Generate grocery list</>
+                }
+              </button>
+            </div>
+          )}
+
+          {/* Step 3: Grocery List from meal plan */}
+          {aiStep === "list" && (
+            <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div>
+                  <h3 className="card-title">Grocery list</h3>
+                  <p style={{ fontSize: "0.8125rem", color: "var(--color-muted)", marginTop: "0.125rem" }}>
+                    {aiSelected.size} of {aiSuggestions.length} selected · est. <strong>${aiTotal.toFixed(2)}</strong>
+                  </p>
+                </div>
+                <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+                  <button
+                    type="button"
+                    onClick={() => setAiSelected(aiSelected.size === aiSuggestions.length ? new Set() : new Set(aiSuggestions.map((_, i) => i)))}
+                    style={{ fontSize: "0.75rem", color: "var(--sage-700)", background: "none", border: "none", cursor: "pointer", fontWeight: 600, whiteSpace: "nowrap" }}
+                  >
+                    {aiSelected.size === aiSuggestions.length ? "Deselect all" : "Select all"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAiStep("meal-plan")}
+                    style={{ fontSize: "0.75rem", color: "var(--color-muted)", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.25rem" }}
+                  >
+                    <RotateCcw style={{ width: "0.75rem", height: "0.75rem" }} /> Meals
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem", maxHeight: "18rem", overflowY: "auto" }}>
+                {aiSuggestions.map((item, i) => (
+                  <label
+                    key={i}
+                    style={{
+                      display: "flex", alignItems: "center", gap: "0.75rem",
+                      padding: "0.5rem 0.625rem", borderRadius: "0.625rem", cursor: "pointer",
+                      border: "1px solid",
+                      borderColor: aiSelected.has(i) ? "var(--sage-300)" : "var(--cream-200)",
+                      background: aiSelected.has(i) ? "var(--sage-50)" : "white",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={aiSelected.has(i)}
+                      onChange={() => toggleAI(i)}
+                      style={{ accentColor: "var(--sage-600)", width: "1rem", height: "1rem", flexShrink: 0 }}
+                    />
+                    <span style={{ flex: 1, fontSize: "0.875rem", fontWeight: 500 }}>{item.name}</span>
+                    <span style={{ fontSize: "0.75rem", color: "var(--color-muted)" }}>×{item.quantity}</span>
+                    <span style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--sage-700)" }}>
+                      ${(item.estimatedPrice * item.quantity).toFixed(2)}
+                    </span>
+                  </label>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={handleAIAdd}
+                disabled={aiSelected.size === 0 || aiAdding}
+                className="btn btn--honey"
+                style={{ gap: "0.5rem" }}
+              >
+                {aiAdding
+                  ? <Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} />
+                  : <Plus style={{ width: "1rem", height: "1rem" }} />
+                }
+                Add {aiSelected.size} item{aiSelected.size !== 1 ? "s" : ""} to my list
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Quick add */}
@@ -355,7 +606,7 @@ export default function GroceriesPage() {
           <div className="card-body">
             {planned.length === 0 ? (
               <p style={{ fontSize: "0.875rem", color: "var(--color-muted)", textAlign: "center", padding: "1.5rem 0" }}>
-                No items yet — use AI or add manually above.
+                No items yet — use AI planner or add manually above.
               </p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column" }}>
@@ -363,9 +614,7 @@ export default function GroceriesPage() {
                   <div
                     key={item.id}
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.75rem",
+                      display: "flex", alignItems: "center", gap: "0.75rem",
                       padding: "0.75rem 0",
                       borderBottom: idx < planned.length - 1 ? "1px solid var(--cream-200)" : "none",
                     }}
@@ -465,10 +714,11 @@ export default function GroceriesPage() {
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                 <span style={{ fontSize: "0.8125rem", fontWeight: 700, color: "var(--sage-700)" }}>${totalPurchased.toFixed(2)}</span>
-                {showPurchased ? <ChevronUp style={{ width: "1rem", height: "1rem", color: "var(--color-muted)" }} /> : <ChevronDown style={{ width: "1rem", height: "1rem", color: "var(--color-muted)" }} />}
+                {showPurchased
+                  ? <ChevronUp style={{ width: "1rem", height: "1rem", color: "var(--color-muted)" }} />
+                  : <ChevronDown style={{ width: "1rem", height: "1rem", color: "var(--color-muted)" }} />}
               </div>
             </button>
-
             {showPurchased && (
               <div className="card-body">
                 <div style={{ display: "flex", flexDirection: "column" }}>
@@ -476,9 +726,7 @@ export default function GroceriesPage() {
                     <div
                       key={item.id}
                       style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.75rem",
+                        display: "flex", alignItems: "center", gap: "0.75rem",
                         padding: "0.625rem 0",
                         borderBottom: idx < purchased.length - 1 ? "1px solid var(--cream-200)" : "none",
                         opacity: 0.75,
@@ -488,7 +736,6 @@ export default function GroceriesPage() {
                         type="button"
                         onClick={() => handleCheck(item)}
                         style={{ background: "none", border: "none", cursor: "pointer", color: "var(--sage-500)", flexShrink: 0, padding: 0, display: "flex" }}
-                        aria-label={`Unmark ${item.name}`}
                       >
                         <CheckCircle2 style={{ width: "1.375rem", height: "1.375rem" }} />
                       </button>
@@ -502,7 +749,6 @@ export default function GroceriesPage() {
                         type="button"
                         onClick={() => handleDelete(item.id)}
                         style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-muted)", flexShrink: 0, padding: 0, display: "flex" }}
-                        aria-label={`Remove ${item.name}`}
                       >
                         <Trash2 style={{ width: "1rem", height: "1rem" }} />
                       </button>
