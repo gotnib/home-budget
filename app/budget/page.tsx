@@ -201,6 +201,7 @@ export default function BudgetPage() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [groceryPercent, setGroceryPercent] = useState(25);
   const [savingsGoal, setSavingsGoal] = useState(0);
+  const [savingsGoalInput, setSavingsGoalInput] = useState("0");
 
   const fetchBudget = useCallback(async () => {
     setIsLoading(true);
@@ -211,6 +212,7 @@ export default function BudgetPage() {
       setData(json);
       setGroceryPercent(json.groceryPercent);
       setSavingsGoal(json.savingsGoal);
+      setSavingsGoalInput(String(json.savingsGoal));
     } catch { setError("Failed to load budget data."); }
     finally { setIsLoading(false); }
   }, []);
@@ -319,9 +321,20 @@ export default function BudgetPage() {
               <span style={{ color: "var(--color-muted)", fontWeight: 500 }}>$</span>
               <input
                 type="number" min="0" step="10"
-                value={savingsGoal}
-                onChange={(e) => setSavingsGoal(Math.max(0, parseFloat(e.target.value) || 0))}
+                value={savingsGoalInput}
+                onChange={(e) => {
+                  setSavingsGoalInput(e.target.value);
+                  const parsed = parseFloat(e.target.value);
+                  if (!isNaN(parsed) && parsed >= 0) setSavingsGoal(parsed);
+                }}
+                onBlur={() => {
+                  const parsed = parseFloat(savingsGoalInput);
+                  const clamped = isNaN(parsed) || parsed < 0 ? 0 : parsed;
+                  setSavingsGoal(clamped);
+                  setSavingsGoalInput(String(clamped));
+                }}
                 className="form-input form-input--narrow form-input--lg"
+                placeholder="0"
               />
               <span style={{ fontSize: "0.875rem", color: "var(--color-muted)" }}>({savingsPct.toFixed(0)}% of income)</span>
             </div>

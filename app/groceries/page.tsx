@@ -5,7 +5,7 @@ import {
   Loader2, Plus, Trash2, CheckCircle2, Circle,
   Sparkles, Receipt, ChevronDown, ChevronUp,
   Users, Baby, Calendar, ArrowRight, RotateCcw,
-  UtensilsCrossed,
+  UtensilsCrossed, Store, DollarSign,
 } from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
 import type { MealPlan, MealWeek } from "@/app/api/groceries/meal-plan/route";
@@ -108,12 +108,15 @@ export default function GroceriesPage() {
   const [newQty, setNewQty] = useState("1");
   const [addingItem, setAddingItem] = useState(false);
 
-  // AI flow
+  // Honey flow
   const [aiStep, setAiStep] = useState<AIStep>("configure");
   const [aiWeeks, setAiWeeks] = useState(1);
   const [aiAdults, setAiAdults] = useState(2);
   const [aiKids, setAiKids] = useState(0);
   const [aiNotes, setAiNotes] = useState("");
+  const [aiStore, setAiStore] = useState("");
+  const [aiBudgetInput, setAiBudgetInput] = useState("");
+  const [aiBudget, setAiBudget] = useState<number | null>(null);
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
   const [aiSuggestions, setAiSuggestions] = useState<AISuggestion[]>([]);
   const [aiSelected, setAiSelected] = useState<Set<number>>(new Set());
@@ -192,7 +195,7 @@ export default function GroceriesPage() {
       const res = await fetch("/api/groceries/meal-plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ weeks: aiWeeks, adults: aiAdults, kids: aiKids, notes: aiNotes }),
+        body: JSON.stringify({ weeks: aiWeeks, adults: aiAdults, kids: aiKids, notes: aiNotes, store: aiStore, budget: aiBudget }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed");
@@ -241,6 +244,9 @@ export default function GroceriesPage() {
     setMealPlan(null);
     setAiSuggestions([]);
     setAiNotes("");
+    setAiStore("");
+    setAiBudgetInput("");
+    setAiBudget(null);
     setAiAdding(false);
   }
 
@@ -343,10 +349,13 @@ export default function GroceriesPage() {
           {(aiStep === "configure" || aiStep === "loading-plan") && (
             <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <span className="icon-pill icon-pill--sage icon-pill--sm">
+                <span className="icon-pill icon-pill--honey icon-pill--sm">
                   <Sparkles style={{ width: "1rem", height: "1rem" }} />
                 </span>
-                <h3 className="card-title" style={{ display: "inline" }}>AI Meal Planner</h3>
+                <div>
+                  <h3 className="card-title" style={{ display: "inline" }}>Ask Honey 🍯</h3>
+                  <p style={{ fontSize: "0.8125rem", color: "var(--color-muted)", marginTop: "0.125rem" }}>Tell Honey about your household and she'll build a meal plan and grocery list.</p>
+                </div>
               </div>
 
               {/* Duration */}
@@ -399,6 +408,55 @@ export default function GroceriesPage() {
                 <Counter value={aiKids} onChange={setAiKids} min={0} max={10} />
               </div>
 
+              {/* Store + Budget row */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", marginBottom: "0.5rem" }}>
+                    <Store style={{ width: "0.875rem", height: "0.875rem", color: "var(--sage-600)" }} />
+                    <label style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--color-fg)" }}>
+                      Store <span style={{ fontWeight: 400, color: "var(--color-muted)" }}>(optional)</span>
+                    </label>
+                  </div>
+                  <input
+                    type="text"
+                    value={aiStore}
+                    onChange={(e) => setAiStore(e.target.value)}
+                    placeholder="Food Lion, Walmart…"
+                    className="form-input"
+                    disabled={isAILoading}
+                  />
+                </div>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", marginBottom: "0.5rem" }}>
+                    <DollarSign style={{ width: "0.875rem", height: "0.875rem", color: "var(--honey-600)" }} />
+                    <label style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--color-fg)" }}>
+                      Budget <span style={{ fontWeight: 400, color: "var(--color-muted)" }}>(optional)</span>
+                    </label>
+                  </div>
+                  <div className="form-input-wrap">
+                    <span style={{ position: "absolute", left: "0.875rem", top: "50%", transform: "translateY(-50%)", color: "var(--color-muted)", pointerEvents: "none" }}>$</span>
+                    <input
+                      type="number"
+                      value={aiBudgetInput}
+                      onChange={(e) => {
+                        setAiBudgetInput(e.target.value);
+                        const v = parseFloat(e.target.value);
+                        setAiBudget(!isNaN(v) && v > 0 ? v : null);
+                      }}
+                      onBlur={() => {
+                        if (aiBudget !== null) setAiBudgetInput(String(aiBudget));
+                        else setAiBudgetInput("");
+                      }}
+                      placeholder="150"
+                      className="form-input form-input--icon-left"
+                      min={1}
+                      step="1"
+                      disabled={isAILoading}
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* Notes */}
               <div>
                 <label style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--color-fg)", display: "block", marginBottom: "0.5rem" }}>
@@ -424,7 +482,7 @@ export default function GroceriesPage() {
                 style={{ gap: "0.5rem" }}
               >
                 {aiStep === "loading-plan"
-                  ? <><Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} /> Building meal plan…</>
+                  ? <><Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} /> Honey is planning…</>
                   : <><UtensilsCrossed style={{ width: "1rem", height: "1rem" }} /> Build meal plan</>
                 }
               </button>
@@ -440,6 +498,8 @@ export default function GroceriesPage() {
                   <p style={{ fontSize: "0.8125rem", color: "var(--color-muted)", marginTop: "0.125rem" }}>
                     {mealPlan.totalDays} days · {mealPlan.adults} adult{mealPlan.adults > 1 ? "s" : ""}
                     {mealPlan.kids > 0 ? ` · ${mealPlan.kids} kid${mealPlan.kids > 1 ? "s" : ""}` : ""}
+                    {mealPlan.store ? ` · ${mealPlan.store}` : ""}
+                    {mealPlan.budget ? ` · $${mealPlan.budget} budget` : ""}
                   </p>
                 </div>
                 <button
@@ -467,8 +527,8 @@ export default function GroceriesPage() {
                 style={{ gap: "0.5rem" }}
               >
                 {aiStep === "loading-list"
-                  ? <><Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} /> Building grocery list…</>
-                  : <><ArrowRight style={{ width: "1rem", height: "1rem" }} /> Generate grocery list</>
+                  ? <><Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} /> Honey is building your list…</>
+                  : <><ArrowRight style={{ width: "1rem", height: "1rem" }} /> Ask Honey to build my list</>
                 }
               </button>
             </div>

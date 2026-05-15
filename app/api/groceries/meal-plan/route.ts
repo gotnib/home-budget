@@ -21,6 +21,8 @@ export interface MealPlan {
   totalDays: number;
   adults: number;
   kids: number;
+  budget: number | null;
+  store: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -30,7 +32,7 @@ export async function POST(request: NextRequest) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await request.json();
-    const { weeks = 1, adults = 2, kids = 0, notes = "" } = body;
+    const { weeks = 1, adults = 2, kids = 0, notes = "", budget = null, store = "" } = body;
 
     const totalDays = Math.min(weeks * 7, 28);
     const peopleDesc = [
@@ -38,7 +40,9 @@ export async function POST(request: NextRequest) {
       kids > 0 ? `${kids} child${kids > 1 ? "ren" : ""}` : "",
     ].filter(Boolean).join(" and ");
 
-    const dayNames = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+    const budgetLine = budget ? ` The grocery budget for this period is $${Number(budget).toFixed(2)}.` : "";
+    const storeLine  = store  ? ` Shopping at ${store}.` : "";
+    const dayNames   = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 
     const response = await anthropic.messages.create({
       model: "claude-opus-4-7",
@@ -46,13 +50,13 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: "user",
-          content: `Create a ${totalDays}-day meal plan for a household of ${peopleDesc}.${notes ? ` Additional notes: ${notes}` : ""}
+          content: `Create a ${totalDays}-day meal plan for a household of ${peopleDesc}.${budgetLine}${storeLine}${notes ? ` Additional notes: ${notes}` : ""}
 
 Requirements:
-- Practical family-friendly meals
+- Practical family-friendly meals scaled to the household size
 - Variety across the plan (avoid repeating the same meal)
 - Mix of quick weekday meals and more involved weekend meals
-- Kid-friendly options when children are present
+- Kid-friendly options when children are present${budget ? `\n- Keep total estimated grocery cost within the $${budget} budget` : ""}${store ? `\n- Prefer ingredients commonly available at ${store}` : ""}
 
 Respond ONLY with a JSON array (no markdown, no explanation) covering exactly ${totalDays} days:
 [
@@ -78,7 +82,6 @@ Keep meal names short and clear (3-5 words max each).`,
       }
     }
 
-    // Group into weeks
     const mealWeeks: MealWeek[] = [];
     for (let w = 0; w < weeks; w++) {
       mealWeeks.push({
@@ -90,7 +93,7 @@ Keep meal names short and clear (3-5 words max each).`,
       });
     }
 
-    const mealPlan: MealPlan = { weeks: mealWeeks, totalDays, adults, kids };
+    const mealPlan: MealPlan = { weeks: mealWeeks, totalDays, adults, kids, budget: budget ? Number(budget) : null, store };
     return NextResponse.json({ mealPlan });
   } catch (error) {
     console.error("Meal plan error:", error);

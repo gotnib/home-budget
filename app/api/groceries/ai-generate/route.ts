@@ -29,18 +29,19 @@ export async function POST(request: NextRequest) {
     const savingsGoal = budgetSettings?.savingsGoal ?? 0;
     const { groceryBudget } = calculateGroceryBudget({ monthlyIncome, fixedBills, savingsGoal, groceryPercent });
 
-    const budgetContext = groceryBudget > 0
-      ? `The household grocery budget is approximately $${groceryBudget.toFixed(0)}/month.`
-      : "";
-
-    const mealsText = mealPlan.weeks.flatMap((w) =>
-      w.days.map((d) => `${d.day}: B: ${d.breakfast} | L: ${d.lunch} | D: ${d.dinner}`)
-    ).join("\n");
+    // Use the user-supplied budget if provided, otherwise fall back to calculated budget
+    const effectiveBudget = mealPlan.budget ?? (groceryBudget > 0 ? groceryBudget : null);
+    const budgetLine = effectiveBudget ? `The total grocery budget for this shopping trip is $${effectiveBudget.toFixed(2)}.` : "";
+    const storeLine  = mealPlan.store ? `Shopping at ${mealPlan.store} — use realistic pricing for that store.` : "Use realistic US grocery store prices.";
 
     const peopleDesc = [
       mealPlan.adults > 0 ? `${mealPlan.adults} adult${mealPlan.adults > 1 ? "s" : ""}` : "",
       mealPlan.kids > 0 ? `${mealPlan.kids} child${mealPlan.kids > 1 ? "ren" : ""}` : "",
     ].filter(Boolean).join(" and ");
+
+    const mealsText = mealPlan.weeks.flatMap((w) =>
+      w.days.map((d) => `${d.day}: B: ${d.breakfast} | L: ${d.lunch} | D: ${d.dinner}`)
+    ).join("\n");
 
     const response = await anthropic.messages.create({
       model: "claude-opus-4-7",
@@ -48,23 +49,23 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: "user",
-          content: `Generate a consolidated grocery shopping list for ${peopleDesc} based on this ${mealPlan.totalDays}-day meal plan. ${budgetContext}
+          content: `Generate a consolidated grocery shopping list for ${peopleDesc} based on this ${mealPlan.totalDays}-day meal plan. ${budgetLine} ${storeLine}
 
 Meal plan:
 ${mealsText}
 
 Rules:
-- Consolidate ingredients across all meals (e.g. one "Pasta 2lb" not separate entries per meal)
-- Include staples and pantry items needed (oils, spices, condiments)
-- Realistic US grocery quantities and prices
+- Consolidate ingredients across all meals (e.g. one "Pasta 1lb" not separate entries per meal)
+- Include essential staples and pantry items needed (oils, spices, condiments, basics)
+- Scale quantities to the household size (${peopleDesc})${effectiveBudget ? `\n- Keep total cost within $${effectiveBudget.toFixed(2)}` : ""}
 - 20-35 items total
 
 Respond ONLY with a JSON array (no markdown, no explanation):
 [{"name": "string", "quantity": number, "estimatedPrice": number}]
 
-- name: clear grocery item (e.g. "Ground Beef 2lb", "Pasta 1lb", "Olive Oil")
-- quantity: units to buy
-- estimatedPrice: price per unit in USD`,
+- name: clear item with size/weight where helpful (e.g. "Ground Beef 2lb", "Whole Milk 1gal")
+- quantity: number of units to buy
+- estimatedPrice: price per unit in USD (realistic for ${mealPlan.store || "a US grocery store"})`,
         },
       ],
     });
@@ -84,7 +85,7 @@ Respond ONLY with a JSON array (no markdown, no explanation):
 
     return NextResponse.json({ suggestions });
   } catch (error) {
-    console.error("AI generate error:", error);
+    console.error("Honey generate error:", error);
     return NextResponse.json({ error: "Failed to generate list" }, { status: 500 });
   }
 }
