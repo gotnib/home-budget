@@ -32,6 +32,7 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [displayNameSaved, setDisplayNameSaved] = useState(false);
+  const [displayNameEditing, setDisplayNameEditing] = useState(false);
   const [shareToken, setShareToken] = useState<string | null>(null);
   const [shareLoading, setShareLoading] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
@@ -100,6 +101,7 @@ export default function SettingsPage() {
       window.dispatchEvent(new CustomEvent("honey-name-changed"));
     } catch { /* ignore */ }
     setDisplayNameSaved(true);
+    setDisplayNameEditing(false);
     setTimeout(() => setDisplayNameSaved(false), 2500);
   }
 
@@ -304,32 +306,59 @@ export default function SettingsPage() {
             </p>
           </div>
           <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            <div className="form-field">
-              <label className="form-label" htmlFor="display-name">
-                <Home style={{ width: "0.875rem", height: "0.875rem", display: "inline", marginRight: "0.375rem", verticalAlign: "middle" }} />
-                Display name
-              </label>
-              <input
-                id="display-name"
-                type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSaveDisplayName()}
-                placeholder="e.g. Smith Family Budget"
-                className="form-input form-input--narrow2"
-                maxLength={30}
-              />
-            </div>
+            {displayName && !displayNameEditing ? (
+              /* Read-only view */
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.75rem 1rem", background: "var(--cream-100)", borderRadius: "0.75rem", border: "1px solid var(--cream-200)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <Home style={{ width: "0.875rem", height: "0.875rem", color: "var(--color-muted)" }} />
+                  <span style={{ fontWeight: 600, color: "var(--color-fg)" }}>{displayName}</span>
+                </div>
+                <button
+                  onClick={() => setDisplayNameEditing(true)}
+                  className="btn btn--outline btn--sm"
+                  style={{ gap: "0.375rem", fontSize: "0.8125rem" }}
+                >
+                  <RefreshCw style={{ width: "0.75rem", height: "0.75rem" }} /> Edit
+                </button>
+              </div>
+            ) : (
+              /* Edit view */
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                <div className="form-field">
+                  <label className="form-label" htmlFor="display-name">
+                    <Home style={{ width: "0.875rem", height: "0.875rem", display: "inline", marginRight: "0.375rem", verticalAlign: "middle" }} />
+                    Display name
+                  </label>
+                  <input
+                    id="display-name"
+                    type="text"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSaveDisplayName()}
+                    placeholder="e.g. Smith Family Budget"
+                    className="form-input form-input--narrow2"
+                    maxLength={30}
+                    autoFocus
+                  />
+                </div>
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                  <button onClick={handleSaveDisplayName} className="btn btn--soft" style={{ gap: "0.5rem" }}>
+                    <Check style={{ width: "1rem", height: "1rem" }} /> Save name
+                  </button>
+                  {displayName && (
+                    <button onClick={() => setDisplayNameEditing(false)} className="btn btn--outline btn--sm" style={{ color: "var(--color-muted)" }}>
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
             {displayNameSaved && (
               <div className="alert alert--success" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                 <Check style={{ width: "1rem", height: "1rem" }} />
                 Name saved! Re-add to Home Screen to see the new label.
               </div>
             )}
-            <button onClick={handleSaveDisplayName} className="btn btn--soft" style={{ gap: "0.5rem", alignSelf: "flex-start" }}>
-              <Check style={{ width: "1rem", height: "1rem" }} />
-              Save name
-            </button>
           </div>
         </div>
 
