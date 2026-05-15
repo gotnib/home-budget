@@ -13,6 +13,14 @@ interface Bill {
   dueDay: number | null;
   cadence: string;
   source: string;
+  paidAt: string | null;
+}
+
+function isPaidThisMonth(paidAt: string | null): boolean {
+  if (!paidAt) return false;
+  const p = new Date(paidAt);
+  const now = new Date();
+  return p.getMonth() === now.getMonth() && p.getFullYear() === now.getFullYear();
 }
 
 interface EditState {
@@ -75,20 +83,6 @@ function isDueSoon(dueDay: number | null, cadence: string, paid: boolean): boole
   if (paid || dueDay == null || cadence !== "monthly") return false;
   const diff = dueDay - new Date().getDate();
   return diff >= 0 && diff <= 7;
-}
-
-function paidKey(id: string): string {
-  const d = new Date();
-  return `bill-paid-${id}-${d.getFullYear()}-${d.getMonth()}`;
-}
-function getBillPaid(id: string): boolean {
-  try { return localStorage.getItem(paidKey(id)) === "1"; } catch { return false; }
-}
-function setBillPaid(id: string, paid: boolean) {
-  try {
-    if (paid) localStorage.setItem(paidKey(id), "1");
-    else localStorage.removeItem(paidKey(id));
-  } catch { /* ignore */ }
 }
 
 /* ── Calendar ── */
@@ -259,7 +253,6 @@ export default function BillsPage() {
   const today = new Date();
 
   const fetchBills = useCallback(async () => {
-    setIsLoading(true);
     try {
       const res = await fetch("/api/bills");
       const data = await res.json();
@@ -267,13 +260,24 @@ export default function BillsPage() {
       const fetched: Bill[] = data.bills;
       setBills(fetched);
       const paid = new Set<string>();
-      fetched.forEach((b) => { if (getBillPaid(b.id)) paid.add(b.id); });
+      fetched.forEach((b) => { if (isPaidThisMonth(b.paidAt)) paid.add(b.id); });
       setPaidIds(paid);
     } catch { setError("Failed to load bills."); }
     finally { setIsLoading(false); }
   }, []);
 
-  useEffect(() => { fetchBills(); }, [fetchBills]);
+  useEffect(() => {
+    fetchBills();
+    // Refetch when the tab becomes visible — picks up changes from the other device
+    const onVisible = () => { if (!document.hidden) fetchBills(); };
+    document.addEventListener("visibilitychange", onVisible);
+    // Also poll every 30 s while visible for simultaneous edits
+    const poll = setInterval(() => { if (!document.hidden) fetchBills(); }, 30000);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      clearInterval(poll);
+    };
+  }, [fetchBills]);
 
   function startEdit(bill: Bill) {
     setEditingId(bill.id);
@@ -308,8 +312,14 @@ export default function BillsPage() {
 
   function handleTogglePaid(id: string) {
     const next = !paidIds.has(id);
-    setBillPaid(id, next);
+    // Optimistic update — instant feedback
     setPaidIds((prev) => { const s = new Set(prev); next ? s.add(id) : s.delete(id); return s; });
+    // Persist to DB so all devices see the change
+    fetch("/api/bills", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, paid: next }),
+    });
   }
 
   const totalMonthly = bills.reduce((s, b) => s + monthlyAmount(b.amount, b.cadence), 0);
@@ -416,12 +426,16 @@ export default function BillsPage() {
                   let daysAgo: number | null = null;
 
                   if (bill.dueDay != null && bill.cadence === "monthly") {
-                    if (over) {
+                    const y = today.getFullYear(), m = today.getMonth();
+                    const daysInMonth = new Date(y, m + 1, 0).getDate();
+                    const clampedDay = Math.min(bill.dueDay, daysInMonth);
+                    if (paid) {
+                      // Always show this month's due date for paid bills
+                      dueLabelStr = `${SHORT_MONTHS[m]} ${clampedDay}`;
+                    } else if (over) {
                       // Past due this month
-                      const y = today.getFullYear(), m = today.getMonth();
-                      const daysInMonth = new Date(y, m + 1, 0).getDate();
-                      const pastDate = new Date(y, m, Math.min(bill.dueDay, daysInMonth));
-                      dueLabelStr = `${SHORT_MONTHS[pastDate.getMonth()]} ${pastDate.getDate()}`;
+                      const pastDate = new Date(y, m, clampedDay);
+                      dueLabelStr = `${SHORT_MONTHS[m]} ${clampedDay}`;
                       daysAgo = Math.round((todayMidnight.getTime() - pastDate.getTime()) / 86400000);
                     } else {
                       // Upcoming (this or next month)

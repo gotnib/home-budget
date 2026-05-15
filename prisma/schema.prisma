@@ -58,14 +58,15 @@ model Income {
 }
 
 model Bill {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
   name      String
   amount    Float
   dueDay    Int?
   cadence   String
   source    String
-  createdAt DateTime @default(now())
+  paidAt    DateTime?
+  createdAt DateTime  @default(now())
 
   user UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
