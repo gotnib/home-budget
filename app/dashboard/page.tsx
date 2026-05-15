@@ -68,9 +68,9 @@ export default async function DashboardPage() {
   const plannedCount = groceryItems.filter((g) => g.status === "planned").length;
 
   const quickLinks = [
-    { href: "/groceries", emoji: "🛒", variant: "lavender" as const, label: "Build grocery list",  sub: `${plannedCount} item${plannedCount === 1 ? "" : "s"} planned` },
-    { href: "/bills",     emoji: "📋", variant: "blush"    as const, label: "Tidy up bills",       sub: `${bills.length} recurring bill${bills.length === 1 ? "" : "s"}` },
-    { href: "/insights",  emoji: "📊", variant: "sage"     as const, label: "View insights",       sub: plaidItems.length > 0 ? "Spending breakdown ready" : "Connect bank to unlock" },
+    { href: "/groceries", emoji: "🛒", variant: "lavender" as const, label: "Build grocery list", sub: `${plannedCount} item${plannedCount === 1 ? "" : "s"} planned` },
+    { href: "/bills",     emoji: "📋", variant: "blush"    as const, label: "Tidy up bills",      sub: `${bills.length} recurring bill${bills.length === 1 ? "" : "s"}` },
+    { href: "/budget",    emoji: "💰", variant: "sage"     as const, label: "Review budget",      sub: "Income, bills & savings" },
   ];
 
   const heroStats = [
