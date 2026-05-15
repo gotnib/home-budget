@@ -88,12 +88,11 @@ export function Navbar({ userEmail }: NavbarProps) {
         {navLinks.map(({ href, label, icon: Icon }) => {
           const active = isActive(href);
           return (
-            <Link key={href} href={href} className={`tab-item${active ? " active" : ""}`}>
+            <Link key={href} href={href} className={`tab-item${active ? " active" : ""}`} aria-label={label}>
               {active && <span className="tab-item-bg" />}
               <span className="tab-item-icon">
-                <Icon style={{ width: "1.25rem", height: "1.25rem" }} strokeWidth={active ? 2.25 : 1.75} />
+                <Icon style={{ width: "1.625rem", height: "1.625rem" }} strokeWidth={active ? 2.25 : 1.75} />
               </span>
-              <span className="tab-item-label">{label}</span>
             </Link>
           );
         })}

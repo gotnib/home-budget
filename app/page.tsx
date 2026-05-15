@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { ArrowRight, CheckCircle2, Eye, EyeOff, Heart, Home, Loader2, ShieldCheck, ShoppingCart, Sparkles, Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -15,9 +14,9 @@ const familyWins = [
 ];
 
 const highlights = [
-  { icon: ShoppingCart, label: "Grocery rhythm",    text: "Plan carts around the money you actually have left.", href: "/groceries" },
-  { icon: Home,         label: "Household clarity", text: "See income, bills, and flexible spending together.",   href: "/dashboard" },
-  { icon: Heart,        label: "Budget jars",       text: "Tune savings goals and grocery allocation.",           href: "/budget" },
+  { icon: ShoppingCart, label: "Grocery rhythm",    text: "Plan carts around the money you actually have left." },
+  { icon: Home,         label: "Household clarity", text: "See income, bills, and flexible spending together."   },
+  { icon: Heart,        label: "Budget jars",       text: "Tune savings goals and grocery allocation."           },
 ];
 
 export default function LandingPage() {
@@ -95,7 +94,7 @@ export default function LandingPage() {
               </header>
 
               <div className="landing-demo-grid">
-                <Link href="/dashboard" className="landing-demo-card" style={{ textDecoration: "none", cursor: "pointer" }}>
+                <div className="landing-demo-card">
                   <p className="landing-demo-label">This month</p>
                   <div style={{ marginTop: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.875rem", fontWeight: 600, color: "var(--honey-900)" }}>
@@ -106,7 +105,7 @@ export default function LandingPage() {
                     </div>
                     <p className="landing-demo-text">A friendly snapshot helps your family see what is covered and what is still flexible.</p>
                   </div>
-                </Link>
+                </div>
 
                 <div className="landing-wins-grid">
                   {familyWins.map((win) => (
@@ -216,8 +215,8 @@ export default function LandingPage() {
             </div>
 
             <div className="landing-highlights">
-              {highlights.map(({ icon: Icon, label, text, href }) => (
-                <Link key={label} href={href} className="landing-highlight-item" style={{ textDecoration: "none", cursor: "pointer" }}>
+              {highlights.map(({ icon: Icon, label, text }) => (
+                <div key={label} className="landing-highlight-item">
                   <span className="icon-pill icon-pill--sage icon-pill--md" style={{ flexShrink: 0 }}>
                     <Icon style={{ width: "1.25rem", height: "1.25rem" }} />
                   </span>
@@ -225,7 +224,7 @@ export default function LandingPage() {
                     <h4>{label}</h4>
                     <p>{text}</p>
                   </div>
-                </Link>
+                </div>
               ))}
             </div>
           </aside>
