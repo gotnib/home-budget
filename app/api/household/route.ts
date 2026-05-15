@@ -52,6 +52,13 @@ export async function POST() {
     const existing = await prisma.household.findUnique({ where: { ownerId: user.id } });
     if (existing) return NextResponse.json({ household: existing, role: "queen" });
 
+    // Ensure UserProfile row exists (FK target)
+    await prisma.userProfile.upsert({
+      where: { id: user.id },
+      create: { id: user.id, email: user.email! },
+      update: {},
+    });
+
     const household = await prisma.household.create({
       data: {
         ownerId: user.id,
