@@ -408,9 +408,8 @@ export default function GroceriesPage() {
           <div className="card animate-fade-up" style={{ borderColor: "var(--honey-200)", background: "var(--honey-50)" }}>
             <button
               type="button"
-              className="card-header"
-              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
               onClick={() => setSavedMealPlanOpen((v) => !v)}
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: savedMealPlanOpen ? "1.25rem 1.25rem 0" : "1.25rem" }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
                 <span className="icon-pill icon-pill--honey icon-pill--sm">
@@ -740,9 +739,8 @@ export default function GroceriesPage() {
           <div className="card animate-fade-up delay-75">
             <button
               type="button"
-              className="card-header"
-              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
               onClick={() => setSavedListsOpen((v) => !v)}
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: savedListsOpen ? "1.25rem 1.25rem 0" : "1.25rem" }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                 <span className="icon-pill icon-pill--lavender icon-pill--sm">
@@ -955,9 +953,8 @@ export default function GroceriesPage() {
           <div className="card animate-fade-up delay-250" style={{ opacity: 0.85 }}>
             <button
               type="button"
-              className="card-header"
-              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
               onClick={() => setShowPurchased((v) => !v)}
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: showPurchased ? "1.25rem 1.25rem 0" : "1.25rem" }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                 <CheckCircle2 style={{ width: "1rem", height: "1rem", color: "var(--sage-600)" }} />
