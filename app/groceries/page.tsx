@@ -1428,6 +1428,7 @@ export default function GroceriesPage() {
             )}
           </div>
         )}
+        </div>
 
       </main>
 
