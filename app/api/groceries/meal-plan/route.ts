@@ -37,9 +37,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Too many requests — please wait before generating another plan." }, { status: 429 });
 
     const body = await request.json();
-    const { weeks = 1, adults = 2, kids = 0, notes = "", budget = null, store = "" } = body;
+    const { days = 7, adults = 2, kids = 0, notes = "", budget = null, store = "" } = body;
 
-    const totalDays = Math.min(weeks * 7, 28);
+    const totalDays = Math.min(Math.max(1, Number(days)), 28);
+    const weeks = Math.ceil(totalDays / 7);
     const peopleDesc = [
       adults > 0 ? `${adults} adult${adults > 1 ? "s" : ""}` : "",
       kids > 0 ? `${kids} child${kids > 1 ? "ren" : ""}` : "",

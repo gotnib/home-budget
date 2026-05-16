@@ -36,10 +36,11 @@ interface SavedList {
 type AIStep = "configure" | "loading-plan" | "meal-plan" | "loading-list" | "list";
 
 const DURATION_OPTIONS = [
-  { label: "1 Week",  weeks: 1 },
-  { label: "2 Weeks", weeks: 2 },
-  { label: "3 Weeks", weeks: 3 },
-  { label: "1 Month", weeks: 4 },
+  { label: "3 days",  days: 3  },
+  { label: "5 days",  days: 5  },
+  { label: "7 days",  days: 7  },
+  { label: "14 days", days: 14 },
+  { label: "28 days", days: 28 },
 ];
 
 function Counter({ value, onChange, min = 0, max = 10 }: { value: number; onChange: (n: number) => void; min?: number; max?: number }) {
@@ -155,7 +156,7 @@ export default function GroceriesPage() {
 
   // Honey flow
   const [aiStep, setAiStep] = useState<AIStep>("configure");
-  const [aiWeeks, setAiWeeks] = useState(1);
+  const [aiDays, setAiDays] = useState(7);
   const [aiAdults, setAiAdults] = useState(2);
   const [aiKids, setAiKids] = useState(0);
   const [aiNotes, setAiNotes] = useState("");
@@ -302,7 +303,7 @@ export default function GroceriesPage() {
       const res = await fetch("/api/groceries/meal-plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ weeks: aiWeeks, adults: aiAdults, kids: aiKids, notes: aiNotes, store: aiStore, budget: aiBudget }),
+        body: JSON.stringify({ days: aiDays, adults: aiAdults, kids: aiKids, notes: aiNotes, store: aiStore, budget: aiBudget }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed");
@@ -700,13 +701,13 @@ export default function GroceriesPage() {
                   <label style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--color-fg)" }}>How long?</label>
                 </div>
                 <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                  {DURATION_OPTIONS.map(({ label, weeks }) => (
+                  {DURATION_OPTIONS.map(({ label, days }) => (
                     <button
-                      key={weeks}
+                      key={days}
                       type="button"
-                      onClick={() => setAiWeeks(weeks)}
+                      onClick={() => setAiDays(days)}
                       disabled={isAILoading}
-                      style={{ padding: "0.5rem 1rem", borderRadius: "0.75rem", border: "1px solid", borderColor: aiWeeks === weeks ? "var(--honey-400)" : "var(--cream-300)", background: aiWeeks === weeks ? "var(--honey-100)" : "white", fontWeight: 700, fontSize: "0.875rem", color: aiWeeks === weeks ? "var(--honey-800)" : "var(--color-muted)", cursor: isAILoading ? "default" : "pointer", transition: "all 0.15s" }}
+                      style={{ padding: "0.5rem 1rem", borderRadius: "0.75rem", border: "1px solid", borderColor: aiDays === days ? "var(--honey-400)" : "var(--cream-300)", background: aiDays === days ? "var(--honey-100)" : "white", fontWeight: 700, fontSize: "0.875rem", color: aiDays === days ? "var(--honey-800)" : "var(--color-muted)", cursor: isAILoading ? "default" : "pointer", transition: "all 0.15s" }}
                     >
                       {label}
                     </button>
