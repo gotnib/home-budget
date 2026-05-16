@@ -342,18 +342,26 @@ export default function GroceriesPage() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? "Failed to regenerate day");
-    // Patch just that day in the mealPlan state
-    setMealPlan((prev) => {
+    // Patch that day in both live view and saved plan, then persist
+    const patchWeeks = (weeks: MealPlan["weeks"]) =>
+      weeks.map((w) =>
+        w.week !== weekNum ? w : {
+          ...w,
+          days: w.days.map((d) => d.day === dayName ? data.day : d),
+        }
+      );
+
+    setMealPlan((prev) => prev ? { ...prev, weeks: patchWeeks(prev.weeks) } : prev);
+
+    setSavedMealPlan((prev) => {
       if (!prev) return prev;
-      return {
-        ...prev,
-        weeks: prev.weeks.map((w) =>
-          w.week !== weekNum ? w : {
-            ...w,
-            days: w.days.map((d) => d.day === dayName ? data.day : d),
-          }
-        ),
-      };
+      const updated = { ...prev, weeks: patchWeeks(prev.weeks) };
+      fetch("/api/user-settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ savedMealPlan: updated }),
+      }).catch(() => {});
+      return updated;
     });
   }
 
