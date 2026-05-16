@@ -196,6 +196,10 @@ export default function GroceriesPage() {
   // Smart reorder
   const [frequentItems, setFrequentItems] = useState<Record<string, { count: number; lastPrice: number | null }>>({});
 
+  // Collapsible panels
+  const [aiPlannerOpen, setAiPlannerOpen] = useState(false);
+  const [receiptOpen, setReceiptOpen] = useState(false);
+
   // Nutrition summary
   const [nutritionOpen, setNutritionOpen] = useState(false);
   const [nutrition, setNutrition] = useState<import("@/app/api/groceries/nutrition/route").NutritionSummary | null>(null);
@@ -640,6 +644,8 @@ export default function GroceriesPage() {
 
   const isAILoading = aiStep === "loading-plan" || aiStep === "loading-list";
 
+  const plannerBodyVisible = aiPlannerOpen || aiStep !== "configure";
+
   return (
     <div className="app-layout">
       <Navbar />
@@ -649,108 +655,339 @@ export default function GroceriesPage() {
         <div className="animate-fade-up">
           <p className="section-label" style={{ marginBottom: "0.25rem" }}>Grocery Planner</p>
           <h1 className="page-title">Grocery List</h1>
+        </div>
+
+        {/* ── Your List (unified card) ── */}
+        <div className="card animate-fade-up delay-50">
+          {/* Budget strip */}
           {budget > 0 && (
-            <div style={{ marginTop: "0.5rem", display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-              <span style={{ fontSize: "0.875rem", color: "var(--color-muted)" }}>
-                Budget: <strong style={{ color: "var(--color-fg)" }}>${budget.toFixed(0)}</strong>
+            <div style={{ display:"flex", gap:"1rem", flexWrap:"wrap", padding:"0.625rem 1.25rem", borderBottom:"1px solid var(--cream-200)", background:"var(--honey-50)" }}>
+              <span style={{ fontSize:"0.8125rem", color:"var(--color-muted)" }}>
+                Budget <strong style={{ color:"var(--color-fg)" }}>${budget.toFixed(0)}</strong>
               </span>
-              <span style={{ fontSize: "0.875rem", color: isOver ? "var(--blush-700)" : "var(--sage-700)", fontWeight: 600 }}>
-                {isOver ? `$${(totalPurchased - budget).toFixed(2)} over` : `$${remaining?.toFixed(2)} remaining`}
+              <span style={{ fontSize:"0.8125rem", fontWeight:700, color: isOver ? "var(--blush-700)" : "var(--sage-700)" }}>
+                {isOver ? `$${(totalPurchased - budget).toFixed(2)} over budget` : `$${remaining?.toFixed(2)} remaining`}
               </span>
             </div>
           )}
-        </div>
 
-        {/* ── Saved Meal Plan card ── */}
-        {savedMealPlan && (
-          <div className="card animate-fade-up" style={{ borderColor: "var(--honey-200)", background: "var(--honey-50)" }}>
-            <button
-              type="button"
-              onClick={() => setSavedMealPlanOpen((v) => !v)}
-              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: savedMealPlanOpen ? "1.25rem 1.25rem 0" : "1.25rem" }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
-                <span className="icon-pill icon-pill--honey icon-pill--sm">
-                  <UtensilsCrossed style={{ width: "1rem", height: "1rem" }} />
-                </span>
-                <div>
-                  <h3 className="card-title">Saved meal plan</h3>
-                  <p style={{ fontSize: "0.75rem", color: "var(--color-muted)", marginTop: "0.125rem" }}>
-                    {savedMealPlan.totalDays} days
-                    {savedMealPlan.store ? ` · ${savedMealPlan.store}` : ""}
-                    {savedMealPlan.budget ? ` · $${savedMealPlan.budget} budget` : ""}
-                    {" · "}{savedMealPlan.adults} adult{savedMealPlan.adults > 1 ? "s" : ""}
-                    {savedMealPlan.kids > 0 ? `, ${savedMealPlan.kids} kid${savedMealPlan.kids > 1 ? "s" : ""}` : ""}
-                    {(savedMealPlan as any).savedAt ? ` · saved ${new Date((savedMealPlan as any).savedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}
-                  </p>
+          {/* Add form — non-hive only */}
+          {userRole !== "hive" && (
+            <div style={{ padding:"1rem 1.25rem", borderBottom:"1px solid var(--cream-200)" }}>
+              <form onSubmit={handleAddItem} style={{ display:"flex", gap:"0.5rem" }}>
+                <input ref={nameRef} type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Add an item…" className="form-input" style={{ flex:1, minWidth:0 }} required />
+                <input type="number" value={newQty} onChange={(e) => setNewQty(e.target.value)} placeholder="Qty" className="form-input" style={{ width:"4.5rem", flexShrink:0 }} min={1} />
+                <button type="submit" disabled={addingItem || !newName.trim()} className="btn btn--honey" style={{ gap:"0.375rem", flexShrink:0 }}>
+                  {addingItem
+                    ? <><Loader2 style={{ width:"1rem", height:"1rem", animation:"spin 1s linear infinite" }} /> Estimating…</>
+                    : <><Plus style={{ width:"1rem", height:"1rem" }} /> Add</>
+                  }
+                </button>
+              </form>
+              <p style={{ fontSize:"0.6875rem", color:"var(--color-muted)", marginTop:"0.375rem" }}>
+                Price estimated automatically by Honey 🍯
+              </p>
+
+              {/* Quick reorder chips — only when there are suggestions */}
+              {Object.keys(frequentItems).length > 0 && (() => {
+                const topItems = Object.entries(frequentItems).sort(([,a],[,b]) => b.count - a.count).slice(0, 8);
+                const plannedNames = new Set(items.filter((i) => i.status === "planned").map((i) => i.name.toLowerCase().trim()));
+                const suggestions = topItems.filter(([key]) => !plannedNames.has(key));
+                if (!suggestions.length) return null;
+                return (
+                  <div style={{ marginTop:"0.75rem" }}>
+                    <p style={{ fontSize:"0.6875rem", fontWeight:700, color:"var(--color-muted)", textTransform:"uppercase", letterSpacing:"0.04em", marginBottom:"0.5rem" }}>Quick reorder</p>
+                    <div style={{ display:"flex", flexWrap:"wrap", gap:"0.375rem" }}>
+                      {suggestions.map(([key, { lastPrice }]) => {
+                        const displayName = key.charAt(0).toUpperCase() + key.slice(1);
+                        return (
+                          <button key={key} type="button"
+                            onClick={async () => {
+                              await fetch("/api/groceries/cart", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ name: displayName, quantity:1, estimatedPrice: lastPrice ?? undefined }) });
+                              fetchItems();
+                            }}
+                            style={{ display:"flex", alignItems:"center", gap:"0.25rem", padding:"0.3125rem 0.625rem", borderRadius:"999px", border:"1px solid var(--cream-300)", background:"var(--cream-50)", fontSize:"0.8125rem", fontWeight:500, cursor:"pointer", color:"var(--color-fg)" }}
+                          >
+                            <Plus style={{ width:"0.625rem", height:"0.625rem", color:"var(--honey-500)" }} />
+                            {displayName}
+                            {lastPrice != null && <span style={{ color:"var(--color-muted)", fontSize:"0.75rem" }}>${lastPrice.toFixed(2)}</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
+          {/* Shopping list items */}
+          <div className="card-body">
+            {planned.length === 0 ? (
+              <p style={{ fontSize:"0.875rem", color:"var(--color-muted)", textAlign:"center", padding:"1.5rem 0" }}>
+                {userRole === "hive" ? "No items on the list yet." : "Your list is empty — add items above or use the meal planner below."}
+              </p>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column" }}>
+                {planned.map((item, idx) => (
+                  <div key={item.id} style={{ display:"flex", alignItems:"center", gap:"0.5rem", padding:"0.625rem 0", borderBottom: idx < planned.length - 1 ? "1px solid var(--cream-200)" : "none" }}>
+                    <button type="button" onClick={() => handleCheck(item)} style={{ background:"none", border:"none", cursor:"pointer", color:"var(--sage-500)", flexShrink:0, padding:"0.5rem", margin:"-0.5rem 0 -0.5rem -0.5rem", display:"flex", borderRadius:"0.5rem" }} aria-label={`Mark ${item.name} as purchased`}>
+                      <Circle style={{ width:"1.375rem", height:"1.375rem" }} />
+                    </button>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <p style={{ fontWeight:600, fontSize:"0.9375rem", color:"var(--color-fg)" }}>{item.name}</p>
+                      {item.quantity > 1 && <p style={{ fontSize:"0.75rem", color:"var(--color-muted)" }}>qty {item.quantity}</p>}
+                    </div>
+                    {item.estimatedPrice != null && (
+                      <span style={{ fontWeight:700, fontSize:"0.9375rem", color:"var(--color-fg)", whiteSpace:"nowrap" }}>
+                        ${(item.estimatedPrice * item.quantity).toFixed(2)}
+                      </span>
+                    )}
+                    {userRole !== "hive" && (
+                      <button type="button" onClick={() => handleDelete(item.id)} style={{ background:"none", border:"none", cursor:"pointer", color:"var(--color-muted)", flexShrink:0, padding:"0.625rem", margin:"-0.625rem -0.625rem -0.625rem 0", display:"flex", alignItems:"center", justifyContent:"center", minWidth:"2.75rem", minHeight:"2.75rem", borderRadius:"0.5rem" }} aria-label={`Remove ${item.name}`}>
+                        <Trash2 style={{ width:"1.125rem", height:"1.125rem" }} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <div style={{ marginTop:"0.625rem", paddingTop:"0.625rem", borderTop:"1px solid var(--cream-200)", display:"flex", justifyContent:"flex-end" }}>
+                  <span style={{ fontSize:"0.8125rem", color:"var(--color-muted)" }}>
+                    Est. total <strong style={{ color:"var(--color-fg)" }}>${totalPlanned.toFixed(2)}</strong>
+                  </span>
                 </div>
               </div>
-              {savedMealPlanOpen
+            )}
+          </div>
+        </div>
+
+        {/* ── Paste a recipe ── */}
+        {userRole !== "hive" && (
+          <div className="card animate-fade-up delay-75">
+            <button
+              type="button"
+              onClick={() => { setPasteOpen((v) => !v); setPasteIngredients(null); setPasteError(null); }}
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: pasteOpen ? "1.25rem 1.25rem 0" : "1.25rem" }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <span className="icon-pill icon-pill--lavender icon-pill--sm">
+                  <ClipboardList style={{ width: "1rem", height: "1rem" }} />
+                </span>
+                <div>
+                  <h3 className="card-title" style={{ display: "inline" }}>Paste a recipe</h3>
+                  <p style={{ fontSize: "0.8125rem", color: "var(--color-muted)", marginTop: "0.125rem" }}>Extract ingredients from any recipe and add them to your list.</p>
+                </div>
+              </div>
+              {pasteOpen
                 ? <ChevronUp style={{ width: "1rem", height: "1rem", color: "var(--color-muted)", flexShrink: 0 }} />
                 : <ChevronDown style={{ width: "1rem", height: "1rem", color: "var(--color-muted)", flexShrink: 0 }} />
               }
             </button>
 
-            {savedMealPlanOpen && (
-              <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                {savedMealPlan.weeks.map((week) => (
-                  <MealWeekCard key={week.week} week={week} onMealClick={handleMealClick} />
-                ))}
-                <div style={{ display: "flex", gap: "0.5rem", paddingTop: "0.25rem" }}>
-                  <button type="button" onClick={handleUseSavedMealPlan} className="btn btn--honey" style={{ flex: 1, gap: "0.5rem", fontSize: "0.875rem" }}>
-                    <ArrowRight style={{ width: "0.875rem", height: "0.875rem" }} />
-                    Build grocery list
-                  </button>
-                  <button type="button" onClick={removeSavedMealPlan} className="btn btn--ghost" style={{ gap: "0.5rem", fontSize: "0.875rem", color: "var(--blush-700)" }}>
-                    <X style={{ width: "0.875rem", height: "0.875rem" }} />
-                    Remove
-                  </button>
-                </div>
+            {pasteOpen && (
+              <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
+                {!pasteIngredients ? (
+                  <>
+                    <textarea
+                      value={pasteText}
+                      onChange={(e) => setPasteText(e.target.value)}
+                      placeholder="Paste your recipe here — ingredients, steps, anything. Honey will find the ingredients."
+                      className="form-input"
+                      style={{ minHeight: "8rem", resize: "vertical", fontFamily: "inherit", fontSize: "0.875rem", lineHeight: 1.5 }}
+                      disabled={pasteParsing}
+                    />
+                    {pasteError && <div role="alert" className="alert alert--error">{pasteError}</div>}
+                    <button
+                      type="button"
+                      onClick={handleParseRecipe}
+                      disabled={pasteParsing || !pasteText.trim()}
+                      className="btn btn--honey"
+                      style={{ gap: "0.5rem" }}
+                    >
+                      {pasteParsing
+                        ? <><Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} /> Extracting ingredients…</>
+                        : <><Sparkles style={{ width: "1rem", height: "1rem" }} /> Extract ingredients</>
+                      }
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <p style={{ fontWeight: 700, fontSize: "0.875rem", color: "var(--color-fg)" }}>
+                        {pasteIngredients.length} ingredient{pasteIngredients.length !== 1 ? "s" : ""} found
+                      </p>
+                      <div style={{ display: "flex", gap: "0.75rem" }}>
+                        <button
+                          type="button"
+                          onClick={() => setPasteSelected(
+                            pasteSelected.size === pasteIngredients.length
+                              ? new Set()
+                              : new Set(pasteIngredients.map((_, i) => i))
+                          )}
+                          style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--honey-700)", background: "none", border: "none", cursor: "pointer" }}
+                        >
+                          {pasteSelected.size === pasteIngredients.length ? "Deselect all" : "Select all"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setPasteIngredients(null); setPasteText(""); }}
+                          style={{ fontSize: "0.75rem", color: "var(--color-muted)", background: "none", border: "none", cursor: "pointer" }}
+                        >
+                          ← Back
+                        </button>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem", maxHeight: "16rem", overflowY: "auto" }}>
+                      {pasteIngredients.map((ing, i) => (
+                        <label
+                          key={i}
+                          style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.5rem 0.625rem", borderRadius: "0.625rem", cursor: "pointer", border: "1px solid", borderColor: pasteSelected.has(i) ? "var(--honey-300)" : "var(--cream-200)", background: pasteSelected.has(i) ? "var(--honey-50)" : "white" }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={pasteSelected.has(i)}
+                            onChange={() => {
+                              const next = new Set(pasteSelected);
+                              next.has(i) ? next.delete(i) : next.add(i);
+                              setPasteSelected(next);
+                            }}
+                            style={{ accentColor: "var(--honey-500)", width: "1rem", height: "1rem", flexShrink: 0 }}
+                          />
+                          <span style={{ flex: 1, fontSize: "0.875rem", fontWeight: 500 }}>{ing.item}</span>
+                          <span style={{ fontSize: "0.75rem", color: "var(--color-muted)" }}>{ing.amount}</span>
+                          <span style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--honey-700)" }}>${ing.estimatedPrice.toFixed(2)}</span>
+                        </label>
+                      ))}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleAddPasteIngredients}
+                      disabled={pasteSelected.size === 0 || pasteAdding}
+                      className="btn btn--honey"
+                      style={{ gap: "0.5rem" }}
+                    >
+                      {pasteAdding
+                        ? <Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} />
+                        : <Plus style={{ width: "1rem", height: "1rem" }} />
+                      }
+                      Add {pasteSelected.size} ingredient{pasteSelected.size !== 1 ? "s" : ""} to list
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>
         )}
 
-        {/* ── AI Meal Planner ── */}
-        {userRole !== "hive" && (<div className="card animate-fade-up delay-50">
+        {/* ── Meal Planning section ── */}
+        <div style={{ marginTop:"0.25rem" }}>
+          <p className="section-label" style={{ padding:"0 0.25rem", marginBottom:"0.75rem" }}>Meal Planning</p>
 
-          {/* Step indicator */}
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "1rem 1.25rem 0" }}>
-            {(["configure", "meal-plan", "list"] as const).map((s, i) => {
-              const stepIndex = ["configure","loading-plan","meal-plan","loading-list","list"].indexOf(aiStep);
-              const thisIndex = i * 2;
-              const done = stepIndex > thisIndex;
-              const active = stepIndex === thisIndex || (i === 1 && stepIndex === 3) || (i === 0 && stepIndex === 1);
-              return (
-                <div key={s} style={{ display: "flex", alignItems: "center", gap: "0.5rem", flex: i < 2 ? 1 : undefined }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}>
-                    <div style={{ width: "1.5rem", height: "1.5rem", borderRadius: "50%", background: done ? "var(--sage-500)" : active ? "var(--honey-500)" : "var(--cream-300)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      <span style={{ fontSize: "0.6875rem", fontWeight: 700, color: done || active ? "white" : "var(--color-muted)" }}>{i + 1}</span>
-                    </div>
-                    <span style={{ fontSize: "0.75rem", fontWeight: 600, color: active ? "var(--color-fg)" : done ? "var(--sage-700)" : "var(--color-muted)", whiteSpace: "nowrap" }}>
-                      {s === "configure" ? "Plan" : s === "meal-plan" ? "Meals" : "List"}
-                    </span>
+          {/* Saved meal plan */}
+          {savedMealPlan && (
+            <div className="card" style={{ borderColor: "var(--honey-200)", background: "var(--honey-50)", marginBottom: "0.75rem" }}>
+              <button
+                type="button"
+                onClick={() => setSavedMealPlanOpen((v) => !v)}
+                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: savedMealPlanOpen ? "1.25rem 1.25rem 0" : "1.25rem" }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "0.625rem" }}>
+                  <span className="icon-pill icon-pill--honey icon-pill--sm">
+                    <UtensilsCrossed style={{ width: "1rem", height: "1rem" }} />
+                  </span>
+                  <div>
+                    <h3 className="card-title">Saved meal plan</h3>
+                    <p style={{ fontSize: "0.75rem", color: "var(--color-muted)", marginTop: "0.125rem" }}>
+                      {savedMealPlan.totalDays} days
+                      {savedMealPlan.store ? ` · ${savedMealPlan.store}` : ""}
+                      {savedMealPlan.budget ? ` · $${savedMealPlan.budget} budget` : ""}
+                      {" · "}{savedMealPlan.adults} adult{savedMealPlan.adults > 1 ? "s" : ""}
+                      {savedMealPlan.kids > 0 ? `, ${savedMealPlan.kids} kid${savedMealPlan.kids > 1 ? "s" : ""}` : ""}
+                      {(savedMealPlan as any).savedAt ? ` · saved ${new Date((savedMealPlan as any).savedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}
+                    </p>
                   </div>
-                  {i < 2 && <div style={{ flex: 1, height: "1px", background: done ? "var(--sage-300)" : "var(--cream-300)", margin: "0 0.25rem" }} />}
                 </div>
-              );
-            })}
-          </div>
+                {savedMealPlanOpen
+                  ? <ChevronUp style={{ width: "1rem", height: "1rem", color: "var(--color-muted)", flexShrink: 0 }} />
+                  : <ChevronDown style={{ width: "1rem", height: "1rem", color: "var(--color-muted)", flexShrink: 0 }} />
+                }
+              </button>
 
-          {/* Step 1: Configure */}
-          {(aiStep === "configure" || aiStep === "loading-plan") && (
-            <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <span className="icon-pill icon-pill--honey icon-pill--sm">
-                  <Sparkles style={{ width: "1rem", height: "1rem" }} />
-                </span>
-                <div>
-                  <h3 className="card-title" style={{ display: "inline" }}>Ask Honey 🍯</h3>
-                  <p style={{ fontSize: "0.8125rem", color: "var(--color-muted)", marginTop: "0.125rem" }}>Tell Honey about your household and she'll build a meal plan and grocery list.</p>
+              {savedMealPlanOpen && (
+                <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                  {savedMealPlan.weeks.map((week) => (
+                    <MealWeekCard key={week.week} week={week} onMealClick={handleMealClick} />
+                  ))}
+                  <div style={{ display: "flex", gap: "0.5rem", paddingTop: "0.25rem" }}>
+                    <button type="button" onClick={handleUseSavedMealPlan} className="btn btn--honey" style={{ flex: 1, gap: "0.5rem", fontSize: "0.875rem" }}>
+                      <ArrowRight style={{ width: "0.875rem", height: "0.875rem" }} />
+                      Build grocery list
+                    </button>
+                    <button type="button" onClick={removeSavedMealPlan} className="btn btn--ghost" style={{ gap: "0.5rem", fontSize: "0.875rem", color: "var(--blush-700)" }}>
+                      <X style={{ width: "0.875rem", height: "0.875rem" }} />
+                      Remove
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
+            </div>
+          )}
 
-              {/* Duration */}
+          {/* AI Planner — collapsible */}
+          {userRole !== "hive" && (
+            <div className="card" style={{ marginBottom: "0.75rem" }}>
+              <button type="button"
+                onClick={() => { if (aiStep === "configure") setAiPlannerOpen((v) => !v); }}
+                style={{ display:"flex", justifyContent:"space-between", alignItems:"center", width:"100%", background:"none", border:"none", cursor: aiStep === "configure" ? "pointer" : "default", textAlign:"left", padding: plannerBodyVisible ? "1rem 1.25rem 0" : "1rem 1.25rem" }}
+              >
+                <div style={{ display:"flex", alignItems:"center", gap:"0.5rem" }}>
+                  <span className="icon-pill icon-pill--honey icon-pill--sm">
+                    <Sparkles style={{ width:"1rem", height:"1rem" }} />
+                  </span>
+                  <div>
+                    <h3 className="card-title" style={{ display:"inline" }}>Ask Honey 🍯</h3>
+                    {!plannerBodyVisible && (
+                      <p style={{ fontSize:"0.8125rem", color:"var(--color-muted)", marginTop:"0.125rem" }}>Build a meal plan and grocery list.</p>
+                    )}
+                  </div>
+                </div>
+                {aiStep === "configure" && (
+                  plannerBodyVisible
+                    ? <ChevronUp style={{ width:"1rem", height:"1rem", color:"var(--color-muted)" }} />
+                    : <ChevronDown style={{ width:"1rem", height:"1rem", color:"var(--color-muted)" }} />
+                )}
+              </button>
+
+              {plannerBodyVisible && (<>
+                {/* Step indicator */}
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "1rem 1.25rem 0" }}>
+                  {(["configure", "meal-plan", "list"] as const).map((s, i) => {
+                    const stepIndex = ["configure","loading-plan","meal-plan","loading-list","list"].indexOf(aiStep);
+                    const thisIndex = i * 2;
+                    const done = stepIndex > thisIndex;
+                    const active = stepIndex === thisIndex || (i === 1 && stepIndex === 3) || (i === 0 && stepIndex === 1);
+                    return (
+                      <div key={s} style={{ display: "flex", alignItems: "center", gap: "0.5rem", flex: i < 2 ? 1 : undefined }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.375rem" }}>
+                          <div style={{ width: "1.5rem", height: "1.5rem", borderRadius: "50%", background: done ? "var(--sage-500)" : active ? "var(--honey-500)" : "var(--cream-300)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            <span style={{ fontSize: "0.6875rem", fontWeight: 700, color: done || active ? "white" : "var(--color-muted)" }}>{i + 1}</span>
+                          </div>
+                          <span style={{ fontSize: "0.75rem", fontWeight: 600, color: active ? "var(--color-fg)" : done ? "var(--sage-700)" : "var(--color-muted)", whiteSpace: "nowrap" }}>
+                            {s === "configure" ? "Plan" : s === "meal-plan" ? "Meals" : "List"}
+                          </span>
+                        </div>
+                        {i < 2 && <div style={{ flex: 1, height: "1px", background: done ? "var(--sage-300)" : "var(--cream-300)", margin: "0 0.25rem" }} />}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Step 1: Configure */}
+                {(aiStep === "configure" || aiStep === "loading-plan") && (
+                  <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+
+                    {/* Duration */}
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.625rem" }}>
                   <Calendar style={{ width: "1rem", height: "1rem", color: "var(--honey-600)" }} />
@@ -870,533 +1107,290 @@ export default function GroceriesPage() {
             </div>
           )}
 
-          {/* Step 2: Meal Plan */}
-          {(aiStep === "meal-plan" || aiStep === "loading-list") && mealPlan && (
-            <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div>
-                  <h3 className="card-title">Your meal plan</h3>
-                  <p style={{ fontSize: "0.8125rem", color: "var(--color-muted)", marginTop: "0.125rem" }}>
-                    {mealPlan.totalDays} days · {mealPlan.adults} adult{mealPlan.adults > 1 ? "s" : ""}
-                    {mealPlan.kids > 0 ? ` · ${mealPlan.kids} kid${mealPlan.kids > 1 ? "s" : ""}` : ""}
-                    {mealPlan.store ? ` · ${mealPlan.store}` : ""}
-                    {mealPlan.budget ? ` · $${mealPlan.budget} budget` : ""}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => { setAiStep("configure"); setMealPlan(null); }}
-                  style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontSize: "0.8125rem", color: "var(--color-muted)", background: "none", border: "none", cursor: "pointer" }}
-                >
-                  <RotateCcw style={{ width: "0.875rem", height: "0.875rem" }} /> Start over
-                </button>
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                {mealPlan.weeks.map((week) => (
-                  <MealWeekCard key={week.week} week={week} onMealClick={handleMealClick} onDayRetry={handleDayRetry} />
-                ))}
-              </div>
-
-              {aiError && <div role="alert" className="alert alert--error">{aiError}</div>}
-
-              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                <button
-                  type="button"
-                  onClick={handleBuildGroceryList}
-                  disabled={aiStep === "loading-list"}
-                  className="btn btn--sage"
-                  style={{ gap: "0.5rem", flex: 1 }}
-                >
-                  {aiStep === "loading-list"
-                    ? <><Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} /> Honey is building your list…</>
-                    : <><ArrowRight style={{ width: "1rem", height: "1rem" }} /> Ask Honey to build my list</>
-                  }
-                </button>
-                <button
-                  type="button"
-                  onClick={handleGetNutrition}
-                  className="btn btn--soft"
-                  style={{ gap: "0.5rem" }}
-                  title="Nutrition overview"
-                >
-                  <UtensilsCrossed style={{ width: "1rem", height: "1rem" }} />
-                  Nutrition
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: Grocery List from meal plan */}
-          {aiStep === "list" && (
-            <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div>
-                  <h3 className="card-title">
-                    Grocery list{mealPlan?.store ? <span style={{ fontWeight: 500, color: "var(--color-muted)" }}> · {mealPlan.store}</span> : ""}
-                  </h3>
-                  <p style={{ fontSize: "0.8125rem", color: "var(--color-muted)", marginTop: "0.125rem" }}>
-                    {aiSelected.size} of {aiSuggestions.length} selected · est. <strong>${aiTotal.toFixed(2)}</strong>
-                    {mealPlan?.budget ? <span> · <span style={{ color: mealPlan.budget && aiTotal > mealPlan.budget ? "var(--blush-700)" : "var(--sage-700)", fontWeight: 700 }}>${mealPlan.budget} budget</span></span> : ""}
-                  </p>
-                </div>
-                <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-                  <button
-                    type="button"
-                    onClick={() => setAiSelected(aiSelected.size === aiSuggestions.length ? new Set() : new Set(aiSuggestions.map((_, i) => i)))}
-                    style={{ fontSize: "0.75rem", color: "var(--sage-700)", background: "none", border: "none", cursor: "pointer", fontWeight: 600, whiteSpace: "nowrap" }}
-                  >
-                    {aiSelected.size === aiSuggestions.length ? "Deselect all" : "Select all"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAiStep("meal-plan")}
-                    style={{ fontSize: "0.75rem", color: "var(--color-muted)", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.25rem" }}
-                  >
-                    <RotateCcw style={{ width: "0.75rem", height: "0.75rem" }} /> Meals
-                  </button>
-                </div>
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem", maxHeight: "18rem", overflowY: "auto" }}>
-                {aiSuggestions.map((item, i) => (
-                  <label
-                    key={i}
-                    style={{
-                      display: "flex", alignItems: "center", gap: "0.75rem",
-                      padding: "0.5rem 0.625rem", borderRadius: "0.625rem", cursor: "pointer",
-                      border: "1px solid",
-                      borderColor: aiSelected.has(i) ? "var(--sage-300)" : "var(--cream-200)",
-                      background: aiSelected.has(i) ? "var(--sage-50)" : "white",
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={aiSelected.has(i)}
-                      onChange={() => toggleAI(i)}
-                      style={{ accentColor: "var(--sage-600)", width: "1rem", height: "1rem", flexShrink: 0 }}
-                    />
-                    <span style={{ flex: 1, fontSize: "0.875rem", fontWeight: 500 }}>{item.name}</span>
-                    <span style={{ fontSize: "0.75rem", color: "var(--color-muted)" }}>×{item.quantity}</span>
-                    <span style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--sage-700)" }}>
-                      ${(item.estimatedPrice * item.quantity).toFixed(2)}
-                    </span>
-                  </label>
-                ))}
-              </div>
-
-              <button
-                type="button"
-                onClick={handleAIAdd}
-                disabled={aiSelected.size === 0 || aiAdding}
-                className="btn btn--honey"
-                style={{ gap: "0.5rem" }}
-              >
-                {aiAdding
-                  ? <Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} />
-                  : <Plus style={{ width: "1rem", height: "1rem" }} />
-                }
-                Add {aiSelected.size} item{aiSelected.size !== 1 ? "s" : ""} to my list
-              </button>
-              <p style={{ fontSize: "0.75rem", color: "var(--color-muted)", textAlign: "center", marginTop: "-0.5rem" }}>
-                This list will be saved to My Saved Lists automatically.
-              </p>
-            </div>
-          )}
-        </div>)}
-
-        {/* ── My Saved Lists ── */}
-        {savedLists.length > 0 && (
-          <div className="card animate-fade-up delay-75">
-            <button
-              type="button"
-              onClick={() => setSavedListsOpen((v) => !v)}
-              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: savedListsOpen ? "1.25rem 1.25rem 0" : "1.25rem" }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <span className="icon-pill icon-pill--lavender icon-pill--sm">
-                  <Bookmark style={{ width: "1rem", height: "1rem" }} />
-                </span>
-                <h3 className="card-title">My Saved Lists</h3>
-                <span className="badge badge--sage">{savedLists.length}</span>
-              </div>
-              {savedListsOpen
-                ? <ChevronUp style={{ width: "1rem", height: "1rem", color: "var(--color-muted)" }} />
-                : <ChevronDown style={{ width: "1rem", height: "1rem", color: "var(--color-muted)" }} />
-              }
-            </button>
-
-            {savedListsOpen && (
-              <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                {savedLists.map((list) => (
-                  <div
-                    key={list.id}
-                    style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.75rem", borderRadius: "0.75rem", border: "1px solid var(--cream-200)", background: "white" }}
-                  >
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontWeight: 600, fontSize: "0.875rem", color: "var(--color-fg)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{list.name}</p>
-                      <p style={{ fontSize: "0.75rem", color: "var(--color-muted)", marginTop: "0.125rem" }}>
-                        {list.items.length} items · ${list.items.reduce((s, i) => s + i.estimatedPrice * i.quantity, 0).toFixed(2)}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleLoadSavedList(list)}
-                      disabled={loadingListId === list.id}
-                      className="btn btn--sage"
-                      style={{ fontSize: "0.8125rem", padding: "0.4375rem 0.875rem", gap: "0.375rem", flexShrink: 0 }}
-                    >
-                      {loadingListId === list.id
-                        ? <Loader2 style={{ width: "0.875rem", height: "0.875rem", animation: "spin 1s linear infinite" }} />
-                        : <Plus style={{ width: "0.875rem", height: "0.875rem" }} />
-                      }
-                      Load
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteSavedList(list.id)}
-                      aria-label={`Delete ${list.name}`}
-                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-muted)", flexShrink: 0, padding: "0.625rem", margin: "-0.625rem -0.375rem -0.625rem 0", display: "flex", alignItems: "center", justifyContent: "center", minWidth: "2.75rem", minHeight: "2.75rem", borderRadius: "0.5rem" }}
-                    >
-                      <Trash2 style={{ width: "1rem", height: "1rem" }} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-        {/* Smart reorder suggestions */}
-        {Object.keys(frequentItems).length > 0 && (() => {
-          const topItems = Object.entries(frequentItems)
-            .sort(([, a], [, b]) => b.count - a.count)
-            .slice(0, 8);
-          const plannedNames = new Set(items.filter((i) => i.status === "planned").map((i) => i.name.toLowerCase().trim()));
-          const suggestions = topItems.filter(([key]) => !plannedNames.has(key));
-          if (suggestions.length === 0) return null;
-          return (
-            <div className="card animate-fade-up delay-75">
-              <div className="card-header">
-                <h3 className="card-title">Quick reorder</h3>
-                <p className="card-description">Items you buy often</p>
-              </div>
-              <div className="card-body">
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
-                  {suggestions.map(([key, { lastPrice }]) => {
-                    const displayName = key.charAt(0).toUpperCase() + key.slice(1);
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={async () => {
-                          await fetch("/api/groceries/cart", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ name: displayName, quantity: 1, estimatedPrice: lastPrice ?? undefined }),
-                          });
-                          fetchItems();
-                        }}
-                        style={{ display: "flex", alignItems: "center", gap: "0.375rem", padding: "0.375rem 0.75rem", borderRadius: "999px", border: "1px solid var(--cream-300)", background: "var(--cream-50)", fontSize: "0.8125rem", fontWeight: 500, cursor: "pointer", color: "var(--color-fg)" }}
-                      >
-                        <Plus style={{ width: "0.75rem", height: "0.75rem", color: "var(--honey-500)" }} />
-                        {displayName}
-                        {lastPrice != null && <span style={{ color: "var(--color-muted)", fontSize: "0.75rem" }}>${lastPrice.toFixed(2)}</span>}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* Quick add */}
-        {userRole !== "hive" && (<div className="card animate-fade-up delay-100">
-          <div className="card-header">
-            <h3 className="card-title">Add item</h3>
-          </div>
-          <div className="card-body">
-            <form onSubmit={handleAddItem} style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-              <input
-                ref={nameRef}
-                type="text"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="Item name"
-                className="form-input"
-                style={{ flex: "1 1 140px", minWidth: 0 }}
-                required
-              />
-              <input
-                type="number"
-                value={newQty}
-                onChange={(e) => setNewQty(e.target.value)}
-                placeholder="Qty"
-                className="form-input"
-                style={{ width: "4.5rem", flexShrink: 0 }}
-                min={1}
-              />
-              <button type="submit" disabled={addingItem || !newName.trim()} className="btn btn--honey" style={{ gap: "0.375rem", flexShrink: 0 }}>
-                {addingItem
-                  ? <><Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} /> Estimating…</>
-                  : <><Plus style={{ width: "1rem", height: "1rem" }} /> Add</>
-                }
-              </button>
-            </form>
-            <p style={{ fontSize: "0.75rem", color: "var(--color-muted)", marginTop: "0.25rem" }}>
-              Price estimated automatically by Honey 🍯
-            </p>
-          </div>
-        </div>)}
-
-        {/* Paste-your-own recipe */}
-        {userRole !== "hive" && (
-          <div className="card animate-fade-up delay-125">
-            <button
-              type="button"
-              onClick={() => { setPasteOpen((v) => !v); setPasteIngredients(null); setPasteError(null); }}
-              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: pasteOpen ? "1.25rem 1.25rem 0" : "1.25rem" }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <span className="icon-pill icon-pill--lavender icon-pill--sm">
-                  <ClipboardList style={{ width: "1rem", height: "1rem" }} />
-                </span>
-                <div>
-                  <h3 className="card-title" style={{ display: "inline" }}>Paste a recipe</h3>
-                  <p style={{ fontSize: "0.8125rem", color: "var(--color-muted)", marginTop: "0.125rem" }}>Extract ingredients from any recipe and add them to your list.</p>
-                </div>
-              </div>
-              {pasteOpen
-                ? <ChevronUp style={{ width: "1rem", height: "1rem", color: "var(--color-muted)", flexShrink: 0 }} />
-                : <ChevronDown style={{ width: "1rem", height: "1rem", color: "var(--color-muted)", flexShrink: 0 }} />
-              }
-            </button>
-
-            {pasteOpen && (
-              <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
-                {!pasteIngredients ? (
-                  <>
-                    <textarea
-                      value={pasteText}
-                      onChange={(e) => setPasteText(e.target.value)}
-                      placeholder="Paste your recipe here — ingredients, steps, anything. Honey will find the ingredients."
-                      className="form-input"
-                      style={{ minHeight: "8rem", resize: "vertical", fontFamily: "inherit", fontSize: "0.875rem", lineHeight: 1.5 }}
-                      disabled={pasteParsing}
-                    />
-                    {pasteError && <div role="alert" className="alert alert--error">{pasteError}</div>}
-                    <button
-                      type="button"
-                      onClick={handleParseRecipe}
-                      disabled={pasteParsing || !pasteText.trim()}
-                      className="btn btn--honey"
-                      style={{ gap: "0.5rem" }}
-                    >
-                      {pasteParsing
-                        ? <><Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} /> Extracting ingredients…</>
-                        : <><Sparkles style={{ width: "1rem", height: "1rem" }} /> Extract ingredients</>
-                      }
-                    </button>
-                  </>
-                ) : (
-                  <>
+                {/* Step 2: Meal Plan */}
+                {(aiStep === "meal-plan" || aiStep === "loading-list") && mealPlan && (
+                  <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <p style={{ fontWeight: 700, fontSize: "0.875rem", color: "var(--color-fg)" }}>
-                        {pasteIngredients.length} ingredient{pasteIngredients.length !== 1 ? "s" : ""} found
-                      </p>
-                      <div style={{ display: "flex", gap: "0.75rem" }}>
+                      <div>
+                        <h3 className="card-title">Your meal plan</h3>
+                        <p style={{ fontSize: "0.8125rem", color: "var(--color-muted)", marginTop: "0.125rem" }}>
+                          {mealPlan.totalDays} days · {mealPlan.adults} adult{mealPlan.adults > 1 ? "s" : ""}
+                          {mealPlan.kids > 0 ? ` · ${mealPlan.kids} kid${mealPlan.kids > 1 ? "s" : ""}` : ""}
+                          {mealPlan.store ? ` · ${mealPlan.store}` : ""}
+                          {mealPlan.budget ? ` · $${mealPlan.budget} budget` : ""}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => { setAiStep("configure"); setMealPlan(null); }}
+                        style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontSize: "0.8125rem", color: "var(--color-muted)", background: "none", border: "none", cursor: "pointer" }}
+                      >
+                        <RotateCcw style={{ width: "0.875rem", height: "0.875rem" }} /> Start over
+                      </button>
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                      {mealPlan.weeks.map((week) => (
+                        <MealWeekCard key={week.week} week={week} onMealClick={handleMealClick} onDayRetry={handleDayRetry} />
+                      ))}
+                    </div>
+
+                    {aiError && <div role="alert" className="alert alert--error">{aiError}</div>}
+
+                    <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                      <button
+                        type="button"
+                        onClick={handleBuildGroceryList}
+                        disabled={aiStep === "loading-list"}
+                        className="btn btn--sage"
+                        style={{ gap: "0.5rem", flex: 1 }}
+                      >
+                        {aiStep === "loading-list"
+                          ? <><Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} /> Honey is building your list…</>
+                          : <><ArrowRight style={{ width: "1rem", height: "1rem" }} /> Ask Honey to build my list</>
+                        }
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleGetNutrition}
+                        className="btn btn--soft"
+                        style={{ gap: "0.5rem" }}
+                        title="Nutrition overview"
+                      >
+                        <UtensilsCrossed style={{ width: "1rem", height: "1rem" }} />
+                        Nutrition
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 3: Grocery List from meal plan */}
+                {aiStep === "list" && (
+                  <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div>
+                        <h3 className="card-title">
+                          Grocery list{mealPlan?.store ? <span style={{ fontWeight: 500, color: "var(--color-muted)" }}> · {mealPlan.store}</span> : ""}
+                        </h3>
+                        <p style={{ fontSize: "0.8125rem", color: "var(--color-muted)", marginTop: "0.125rem" }}>
+                          {aiSelected.size} of {aiSuggestions.length} selected · est. <strong>${aiTotal.toFixed(2)}</strong>
+                          {mealPlan?.budget ? <span> · <span style={{ color: mealPlan.budget && aiTotal > mealPlan.budget ? "var(--blush-700)" : "var(--sage-700)", fontWeight: 700 }}>${mealPlan.budget} budget</span></span> : ""}
+                        </p>
+                      </div>
+                      <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
                         <button
                           type="button"
-                          onClick={() => setPasteSelected(
-                            pasteSelected.size === pasteIngredients.length
-                              ? new Set()
-                              : new Set(pasteIngredients.map((_, i) => i))
-                          )}
-                          style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--honey-700)", background: "none", border: "none", cursor: "pointer" }}
+                          onClick={() => setAiSelected(aiSelected.size === aiSuggestions.length ? new Set() : new Set(aiSuggestions.map((_, i) => i)))}
+                          style={{ fontSize: "0.75rem", color: "var(--sage-700)", background: "none", border: "none", cursor: "pointer", fontWeight: 600, whiteSpace: "nowrap" }}
                         >
-                          {pasteSelected.size === pasteIngredients.length ? "Deselect all" : "Select all"}
+                          {aiSelected.size === aiSuggestions.length ? "Deselect all" : "Select all"}
                         </button>
                         <button
                           type="button"
-                          onClick={() => { setPasteIngredients(null); setPasteText(""); }}
-                          style={{ fontSize: "0.75rem", color: "var(--color-muted)", background: "none", border: "none", cursor: "pointer" }}
+                          onClick={() => setAiStep("meal-plan")}
+                          style={{ fontSize: "0.75rem", color: "var(--color-muted)", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.25rem" }}
                         >
-                          ← Back
+                          <RotateCcw style={{ width: "0.75rem", height: "0.75rem" }} /> Meals
                         </button>
                       </div>
                     </div>
 
-                    <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem", maxHeight: "16rem", overflowY: "auto" }}>
-                      {pasteIngredients.map((ing, i) => (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem", maxHeight: "18rem", overflowY: "auto" }}>
+                      {aiSuggestions.map((item, i) => (
                         <label
                           key={i}
-                          style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.5rem 0.625rem", borderRadius: "0.625rem", cursor: "pointer", border: "1px solid", borderColor: pasteSelected.has(i) ? "var(--honey-300)" : "var(--cream-200)", background: pasteSelected.has(i) ? "var(--honey-50)" : "white" }}
+                          style={{
+                            display: "flex", alignItems: "center", gap: "0.75rem",
+                            padding: "0.5rem 0.625rem", borderRadius: "0.625rem", cursor: "pointer",
+                            border: "1px solid",
+                            borderColor: aiSelected.has(i) ? "var(--sage-300)" : "var(--cream-200)",
+                            background: aiSelected.has(i) ? "var(--sage-50)" : "white",
+                          }}
                         >
                           <input
                             type="checkbox"
-                            checked={pasteSelected.has(i)}
-                            onChange={() => {
-                              const next = new Set(pasteSelected);
-                              next.has(i) ? next.delete(i) : next.add(i);
-                              setPasteSelected(next);
-                            }}
-                            style={{ accentColor: "var(--honey-500)", width: "1rem", height: "1rem", flexShrink: 0 }}
+                            checked={aiSelected.has(i)}
+                            onChange={() => toggleAI(i)}
+                            style={{ accentColor: "var(--sage-600)", width: "1rem", height: "1rem", flexShrink: 0 }}
                           />
-                          <span style={{ flex: 1, fontSize: "0.875rem", fontWeight: 500 }}>{ing.item}</span>
-                          <span style={{ fontSize: "0.75rem", color: "var(--color-muted)" }}>{ing.amount}</span>
-                          <span style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--honey-700)" }}>${ing.estimatedPrice.toFixed(2)}</span>
+                          <span style={{ flex: 1, fontSize: "0.875rem", fontWeight: 500 }}>{item.name}</span>
+                          <span style={{ fontSize: "0.75rem", color: "var(--color-muted)" }}>×{item.quantity}</span>
+                          <span style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--sage-700)" }}>
+                            ${(item.estimatedPrice * item.quantity).toFixed(2)}
+                          </span>
                         </label>
                       ))}
                     </div>
 
                     <button
                       type="button"
-                      onClick={handleAddPasteIngredients}
-                      disabled={pasteSelected.size === 0 || pasteAdding}
+                      onClick={handleAIAdd}
+                      disabled={aiSelected.size === 0 || aiAdding}
                       className="btn btn--honey"
                       style={{ gap: "0.5rem" }}
                     >
-                      {pasteAdding
+                      {aiAdding
                         ? <Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} />
                         : <Plus style={{ width: "1rem", height: "1rem" }} />
                       }
-                      Add {pasteSelected.size} ingredient{pasteSelected.size !== 1 ? "s" : ""} to list
+                      Add {aiSelected.size} item{aiSelected.size !== 1 ? "s" : ""} to my list
                     </button>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Shopping list */}
-        <div className="card animate-fade-up delay-150">
-          <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <h3 className="card-title">Shopping list</h3>
-            {planned.length > 0 && (
-              <span style={{ fontSize: "0.8125rem", color: "var(--color-muted)" }}>
-                est. ${totalPlanned.toFixed(2)}
-              </span>
-            )}
-          </div>
-          <div className="card-body">
-            {planned.length === 0 ? (
-              <p style={{ fontSize: "0.875rem", color: "var(--color-muted)", textAlign: "center", padding: "1.5rem 0" }}>
-                No items yet — use AI planner or add manually above.
-              </p>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column" }}>
-                {planned.map((item, idx) => (
-                  <div
-                    key={item.id}
-                    style={{
-                      display: "flex", alignItems: "center", gap: "0.5rem",
-                      padding: "0.625rem 0",
-                      borderBottom: idx < planned.length - 1 ? "1px solid var(--cream-200)" : "none",
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => handleCheck(item)}
-                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--sage-500)", flexShrink: 0, padding: "0.5rem", margin: "-0.5rem 0 -0.5rem -0.5rem", display: "flex", borderRadius: "0.5rem" }}
-                      aria-label={`Mark ${item.name} as purchased`}
-                    >
-                      <Circle style={{ width: "1.375rem", height: "1.375rem" }} />
-                    </button>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontWeight: 600, fontSize: "0.9375rem", color: "var(--color-fg)" }}>{item.name}</p>
-                      {item.quantity > 1 && (
-                        <p style={{ fontSize: "0.75rem", color: "var(--color-muted)" }}>qty {item.quantity}</p>
-                      )}
-                    </div>
-                    {item.estimatedPrice != null && (
-                      <span style={{ fontWeight: 700, fontSize: "0.9375rem", color: "var(--color-fg)", whiteSpace: "nowrap" }}>
-                        ${(item.estimatedPrice * item.quantity).toFixed(2)}
-                      </span>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(item.id)}
-                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-muted)", flexShrink: 0, padding: "0.625rem", margin: "-0.625rem -0.625rem -0.625rem 0", display: "flex", alignItems: "center", justifyContent: "center", minWidth: "2.75rem", minHeight: "2.75rem", borderRadius: "0.5rem" }}
-                      aria-label={`Remove ${item.name}`}
-                    >
-                      <Trash2 style={{ width: "1.125rem", height: "1.125rem" }} />
-                    </button>
+                    <p style={{ fontSize: "0.75rem", color: "var(--color-muted)", textAlign: "center", marginTop: "-0.5rem" }}>
+                      This list will be saved to My Saved Lists automatically.
+                    </p>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                )}
+              </>)}
+            </div>
+          )}
+
+          {/* Saved Lists */}
+          {savedLists.length > 0 && (
+            <div className="card">
+              <button
+                type="button"
+                onClick={() => setSavedListsOpen((v) => !v)}
+                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: savedListsOpen ? "1.25rem 1.25rem 0" : "1.25rem" }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <span className="icon-pill icon-pill--lavender icon-pill--sm">
+                    <Bookmark style={{ width: "1rem", height: "1rem" }} />
+                  </span>
+                  <h3 className="card-title">My Saved Lists</h3>
+                  <span className="badge badge--sage">{savedLists.length}</span>
+                </div>
+                {savedListsOpen
+                  ? <ChevronUp style={{ width: "1rem", height: "1rem", color: "var(--color-muted)" }} />
+                  : <ChevronDown style={{ width: "1rem", height: "1rem", color: "var(--color-muted)" }} />
+                }
+              </button>
+
+              {savedListsOpen && (
+                <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                  {savedLists.map((list) => (
+                    <div
+                      key={list.id}
+                      style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.75rem", borderRadius: "0.75rem", border: "1px solid var(--cream-200)", background: "white" }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontWeight: 600, fontSize: "0.875rem", color: "var(--color-fg)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{list.name}</p>
+                        <p style={{ fontSize: "0.75rem", color: "var(--color-muted)", marginTop: "0.125rem" }}>
+                          {list.items.length} items · ${list.items.reduce((s, i) => s + i.estimatedPrice * i.quantity, 0).toFixed(2)}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleLoadSavedList(list)}
+                        disabled={loadingListId === list.id}
+                        className="btn btn--sage"
+                        style={{ fontSize: "0.8125rem", padding: "0.4375rem 0.875rem", gap: "0.375rem", flexShrink: 0 }}
+                      >
+                        {loadingListId === list.id
+                          ? <Loader2 style={{ width: "0.875rem", height: "0.875rem", animation: "spin 1s linear infinite" }} />
+                          : <Plus style={{ width: "0.875rem", height: "0.875rem" }} />
+                        }
+                        Load
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteSavedList(list.id)}
+                        aria-label={`Delete ${list.name}`}
+                        style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-muted)", flexShrink: 0, padding: "0.625rem", margin: "-0.625rem -0.375rem -0.625rem 0", display: "flex", alignItems: "center", justifyContent: "center", minWidth: "2.75rem", minHeight: "2.75rem", borderRadius: "0.5rem" }}
+                      >
+                        <Trash2 style={{ width: "1rem", height: "1rem" }} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Log a receipt */}
-        {userRole !== "hive" && (<div className="card animate-fade-up delay-200">
-          <div className="card-header">
-            <span className="icon-pill icon-pill--honey icon-pill--sm" style={{ marginRight: "0.5rem" }}>
-              <Receipt style={{ width: "1rem", height: "1rem" }} />
-            </span>
-            <h3 className="card-title" style={{ display: "inline" }}>Log a receipt</h3>
-          </div>
-          <div className="card-body">
-            <p style={{ fontSize: "0.8125rem", color: "var(--color-muted)", marginBottom: "0.75rem" }}>
-              Already shopped? Log your total to track it against your grocery budget.
-            </p>
-            <form onSubmit={handleReceipt} style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-              <input
-                type="text"
-                value={receiptStore}
-                onChange={(e) => setReceiptStore(e.target.value)}
-                placeholder="Store name (optional)"
-                className="form-input"
-                style={{ flex: "1 1 140px", minWidth: 0 }}
-              />
-              <div className="form-input-wrap" style={{ width: "8rem", flexShrink: 0 }}>
-                <span style={{ position: "absolute", left: "0.875rem", top: "50%", transform: "translateY(-50%)", color: "var(--color-muted)", fontSize: "0.9375rem", pointerEvents: "none" }}>$</span>
-                <input
-                  type="number"
-                  value={receiptAmount}
-                  onChange={(e) => setReceiptAmount(e.target.value)}
-                  placeholder="0.00"
-                  className="form-input form-input--icon-left"
-                  step="0.01"
-                  min={0}
-                  required
-                />
-              </div>
-              <button type="submit" disabled={receiptLogging || !receiptAmount} className="btn btn--honey" style={{ gap: "0.375rem", flexShrink: 0 }}>
-                {receiptLogging
-                  ? <Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} />
-                  : <Plus style={{ width: "1rem", height: "1rem" }} />
-                }
-                Log
-              </button>
-            </form>
-          </div>
-        </div>)}
+        {/* ── After Shopping section ── */}
+        <div style={{ marginTop:"0.25rem" }}>
+          <p className="section-label" style={{ padding:"0 0.25rem", marginBottom:"0.75rem" }}>After Shopping</p>
 
-        {/* Purchased / logged */}
-        {purchased.length > 0 && (
-          <div className="card animate-fade-up delay-250" style={{ opacity: 0.85 }}>
-            <button
-              type="button"
-              onClick={() => setShowPurchased((v) => !v)}
-              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: showPurchased ? "1.25rem 1.25rem 0" : "1.25rem" }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <CheckCircle2 style={{ width: "1rem", height: "1rem", color: "var(--sage-600)" }} />
-                <h3 className="card-title" style={{ color: "var(--color-muted)" }}>Purchased / logged</h3>
-                <span className="badge badge--sage">{purchased.length}</span>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <span style={{ fontSize: "0.8125rem", fontWeight: 700, color: "var(--sage-700)" }}>${totalPurchased.toFixed(2)}</span>
-                {showPurchased
-                  ? <ChevronUp style={{ width: "1rem", height: "1rem", color: "var(--color-muted)" }} />
-                  : <ChevronDown style={{ width: "1rem", height: "1rem", color: "var(--color-muted)" }} />}
-              </div>
-            </button>
-            {showPurchased && (
-              <div className="card-body">
-                <div style={{ display: "flex", flexDirection: "column" }}>
+          {/* Log receipt — collapsible */}
+          {userRole !== "hive" && (
+            <div className="card" style={{ marginBottom:"0.75rem" }}>
+              <button type="button" onClick={() => setReceiptOpen((v) => !v)}
+                style={{ display:"flex", justifyContent:"space-between", alignItems:"center", width:"100%", background:"none", border:"none", cursor:"pointer", textAlign:"left", padding: receiptOpen ? "1.25rem 1.25rem 0" : "1.25rem" }}
+              >
+                <div style={{ display:"flex", alignItems:"center", gap:"0.5rem" }}>
+                  <span className="icon-pill icon-pill--honey icon-pill--sm">
+                    <Receipt style={{ width:"1rem", height:"1rem" }} />
+                  </span>
+                  <div>
+                    <h3 className="card-title">Log a receipt</h3>
+                    <p style={{ fontSize:"0.8125rem", color:"var(--color-muted)", marginTop:"0.125rem" }}>Track your spend against your grocery budget.</p>
+                  </div>
+                </div>
+                {receiptOpen
+                  ? <ChevronUp style={{ width:"1rem", height:"1rem", color:"var(--color-muted)", flexShrink:0 }} />
+                  : <ChevronDown style={{ width:"1rem", height:"1rem", color:"var(--color-muted)", flexShrink:0 }} />
+                }
+              </button>
+              {receiptOpen && (
+                <div className="card-body">
+                  <form onSubmit={handleReceipt} style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                    <input
+                      type="text"
+                      value={receiptStore}
+                      onChange={(e) => setReceiptStore(e.target.value)}
+                      placeholder="Store name (optional)"
+                      className="form-input"
+                      style={{ flex: "1 1 140px", minWidth: 0 }}
+                    />
+                    <div className="form-input-wrap" style={{ width: "8rem", flexShrink: 0 }}>
+                      <span style={{ position: "absolute", left: "0.875rem", top: "50%", transform: "translateY(-50%)", color: "var(--color-muted)", fontSize: "0.9375rem", pointerEvents: "none" }}>$</span>
+                      <input
+                        type="number"
+                        value={receiptAmount}
+                        onChange={(e) => setReceiptAmount(e.target.value)}
+                        placeholder="0.00"
+                        className="form-input form-input--icon-left"
+                        step="0.01"
+                        min={0}
+                        required
+                      />
+                    </div>
+                    <button type="submit" disabled={receiptLogging || !receiptAmount} className="btn btn--honey" style={{ gap: "0.375rem", flexShrink: 0 }}>
+                      {receiptLogging
+                        ? <Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} />
+                        : <Plus style={{ width: "1rem", height: "1rem" }} />
+                      }
+                      Log
+                    </button>
+                  </form>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Purchased / logged */}
+          {purchased.length > 0 && (
+            <div className="card" style={{ opacity: 0.85 }}>
+              <button
+                type="button"
+                onClick={() => setShowPurchased((v) => !v)}
+                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: showPurchased ? "1.25rem 1.25rem 0" : "1.25rem" }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <CheckCircle2 style={{ width: "1rem", height: "1rem", color: "var(--sage-600)" }} />
+                  <h3 className="card-title" style={{ color: "var(--color-muted)" }}>Purchased / logged</h3>
+                  <span className="badge badge--sage">{purchased.length}</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <span style={{ fontSize: "0.8125rem", fontWeight: 700, color: "var(--sage-700)" }}>${totalPurchased.toFixed(2)}</span>
+                  {showPurchased
+                    ? <ChevronUp style={{ width: "1rem", height: "1rem", color: "var(--color-muted)" }} />
+                    : <ChevronDown style={{ width: "1rem", height: "1rem", color: "var(--color-muted)" }} />}
+                </div>
+              </button>
+              {showPurchased && (
+                <div className="card-body">
+                  <div style={{ display: "flex", flexDirection: "column" }}>
                   {purchased.map((item, idx) => (
                     <div
                       key={item.id}
