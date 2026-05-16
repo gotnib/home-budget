@@ -84,14 +84,14 @@ Keep meal names short and clear (3-5 words max each). Never include the word "Le
       ],
     });
 
-    let days: MealDay[] = [];
+    let parsedDays: MealDay[] = [];
     for (const block of response.content) {
       if (block.type === "text") {
         const raw = block.text.trim();
         const start = raw.indexOf("[");
         const end = raw.lastIndexOf("]");
         if (start !== -1 && end !== -1) {
-          days = JSON.parse(raw.slice(start, end + 1));
+          parsedDays = JSON.parse(raw.slice(start, end + 1));
         }
         break;
       }
@@ -101,7 +101,7 @@ Keep meal names short and clear (3-5 words max each). Never include the word "Le
     for (let w = 0; w < weeks; w++) {
       mealWeeks.push({
         week: w + 1,
-        days: days.slice(w * 7, (w + 1) * 7).map((d, i) => ({
+        days: parsedDays.slice(w * 7, (w + 1) * 7).map((d, i) => ({
           ...d,
           day: dayNames[i] ?? d.day,
         })),
