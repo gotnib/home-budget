@@ -68,6 +68,7 @@ VARIETY RULES (strictly enforced):
 GENERAL RULES:
 - Practical family-friendly meals scaled to the household size
 - Every meal freshly prepared — NEVER use "Leftovers" or any variation
+- NEVER suggest homemade pizza or any pizza that requires making dough from scratch — if pizza is included it must use store-bought/premade dough and the meal name must say "Premade Dough Pizza" or similar to make that clear; otherwise skip pizza entirely
 - Mix of quick weekday meals and more involved weekend meals
 - Kid-friendly options when children are present${budget ? `\n- STRICT BUDGET: Stay within $${budget} total. Use economical proteins, pantry staples, and ingredient-sharing across meals.` : ""}${store ? `\n- Prefer ingredients commonly available at ${store}` : ""}
 

@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
 Rules:
 - NEVER repeat a meal name from the existing plan list above
 - NEVER use "Leftovers" or any leftover variation
+- NEVER suggest homemade pizza requiring scratch dough — if pizza is included it must use store-bought/premade dough and must say so in the name; otherwise skip pizza
 - Breakfast: pick a style not already dominant (if eggs appear 2+ times already, try oatmeal, pancakes, yogurt parfait, avocado toast, french toast, smoothie bowl, breakfast burrito, etc.)
 - Lunch: use a different format from existing lunches (if sandwiches dominate, choose a salad, soup, grain bowl, quesadilla, stir-fry, etc.)
 - Dinner: use a cuisine style not already overrepresented (Italian, Mexican, Asian, Mediterranean, American, Indian, Greek, etc.)
