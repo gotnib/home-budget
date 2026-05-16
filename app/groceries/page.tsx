@@ -5,7 +5,7 @@ import {
   Loader2, Plus, Trash2, CheckCircle2, Circle,
   Sparkles, Receipt, ChevronDown, ChevronUp,
   Users, Baby, Calendar, ArrowRight, RotateCcw,
-  UtensilsCrossed, Store, DollarSign, Bookmark, X, BookOpen,
+  UtensilsCrossed, Store, DollarSign, Bookmark, X, BookOpen, ClipboardList,
 } from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
 import type { MealPlan, MealWeek } from "@/app/api/groceries/meal-plan/route";
@@ -150,9 +150,17 @@ export default function GroceriesPage() {
 
   // Add item
   const [newName, setNewName] = useState("");
-  const [newPrice, setNewPrice] = useState("");
   const [newQty, setNewQty] = useState("1");
   const [addingItem, setAddingItem] = useState(false);
+
+  // Paste recipe
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteText, setPasteText] = useState("");
+  const [pasteParsing, setPasteParsing] = useState(false);
+  const [pasteIngredients, setPasteIngredients] = useState<{ item: string; amount: string; estimatedPrice: number }[] | null>(null);
+  const [pasteSelected, setPasteSelected] = useState<Set<number>>(new Set());
+  const [pasteAdding, setPasteAdding] = useState(false);
+  const [pasteError, setPasteError] = useState<string | null>(null);
 
   // Honey flow
   const [aiStep, setAiStep] = useState<AIStep>("configure");
@@ -241,19 +249,67 @@ export default function GroceriesPage() {
     e.preventDefault();
     if (!newName.trim()) return;
     setAddingItem(true);
+    const qty = parseInt(newQty) || 1;
+    let estimatedPrice: number | undefined;
+    try {
+      const pr = await fetch("/api/groceries/estimate-price", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ item: newName.trim(), quantity: qty }),
+      });
+      if (pr.ok) { const pd = await pr.json(); estimatedPrice = pd.price; }
+    } catch { /* best-effort */ }
     await fetch("/api/groceries/cart", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: newName.trim(),
-        quantity: parseInt(newQty) || 1,
-        estimatedPrice: newPrice ? parseFloat(newPrice) : undefined,
-      }),
+      body: JSON.stringify({ name: newName.trim(), quantity: qty, estimatedPrice }),
     });
-    setNewName(""); setNewPrice(""); setNewQty("1");
+    setNewName(""); setNewQty("1");
     await fetchItems();
     setAddingItem(false);
     nameRef.current?.focus();
+  }
+
+  async function handleParseRecipe() {
+    if (!pasteText.trim()) return;
+    setPasteError(null);
+    setPasteParsing(true);
+    setPasteIngredients(null);
+    try {
+      const res = await fetch("/api/groceries/parse-recipe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipeText: pasteText }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to parse");
+      setPasteIngredients(data.ingredients ?? []);
+      setPasteSelected(new Set(data.ingredients.map((_: unknown, i: number) => i)));
+    } catch (err) {
+      setPasteError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setPasteParsing(false);
+    }
+  }
+
+  async function handleAddPasteIngredients() {
+    if (!pasteIngredients) return;
+    const toAdd = pasteIngredients.filter((_, i) => pasteSelected.has(i));
+    if (!toAdd.length) return;
+    setPasteAdding(true);
+    await fetch("/api/groceries/cart/bulk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        items: toAdd.map((ing) => ({ name: ing.item, quantity: 1, estimatedPrice: ing.estimatedPrice })),
+      }),
+    });
+    await fetchItems();
+    setPasteOpen(false);
+    setPasteText("");
+    setPasteIngredients(null);
+    setPasteSelected(new Set());
+    setPasteAdding(false);
   }
 
   function handleCheck(item: GroceryItem) {
@@ -1080,26 +1136,138 @@ export default function GroceriesPage() {
                 style={{ width: "4.5rem", flexShrink: 0 }}
                 min={1}
               />
-              <input
-                type="number"
-                value={newPrice}
-                onChange={(e) => setNewPrice(e.target.value)}
-                placeholder="Price"
-                className="form-input"
-                style={{ width: "5.5rem", flexShrink: 0 }}
-                step="0.01"
-                min={0}
-              />
               <button type="submit" disabled={addingItem || !newName.trim()} className="btn btn--honey" style={{ gap: "0.375rem", flexShrink: 0 }}>
                 {addingItem
-                  ? <Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} />
-                  : <Plus style={{ width: "1rem", height: "1rem" }} />
+                  ? <><Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} /> Estimating…</>
+                  : <><Plus style={{ width: "1rem", height: "1rem" }} /> Add</>
                 }
-                Add
               </button>
             </form>
+            <p style={{ fontSize: "0.75rem", color: "var(--color-muted)", marginTop: "0.25rem" }}>
+              Price estimated automatically by Honey 🍯
+            </p>
           </div>
         </div>)}
+
+        {/* Paste-your-own recipe */}
+        {userRole !== "hive" && (
+          <div className="card animate-fade-up delay-125">
+            <button
+              type="button"
+              onClick={() => { setPasteOpen((v) => !v); setPasteIngredients(null); setPasteError(null); }}
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: pasteOpen ? "1.25rem 1.25rem 0" : "1.25rem" }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <span className="icon-pill icon-pill--lavender icon-pill--sm">
+                  <ClipboardList style={{ width: "1rem", height: "1rem" }} />
+                </span>
+                <div>
+                  <h3 className="card-title" style={{ display: "inline" }}>Paste a recipe</h3>
+                  <p style={{ fontSize: "0.8125rem", color: "var(--color-muted)", marginTop: "0.125rem" }}>Extract ingredients from any recipe and add them to your list.</p>
+                </div>
+              </div>
+              {pasteOpen
+                ? <ChevronUp style={{ width: "1rem", height: "1rem", color: "var(--color-muted)", flexShrink: 0 }} />
+                : <ChevronDown style={{ width: "1rem", height: "1rem", color: "var(--color-muted)", flexShrink: 0 }} />
+              }
+            </button>
+
+            {pasteOpen && (
+              <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
+                {!pasteIngredients ? (
+                  <>
+                    <textarea
+                      value={pasteText}
+                      onChange={(e) => setPasteText(e.target.value)}
+                      placeholder="Paste your recipe here — ingredients, steps, anything. Honey will find the ingredients."
+                      className="form-input"
+                      style={{ minHeight: "8rem", resize: "vertical", fontFamily: "inherit", fontSize: "0.875rem", lineHeight: 1.5 }}
+                      disabled={pasteParsing}
+                    />
+                    {pasteError && <div role="alert" className="alert alert--error">{pasteError}</div>}
+                    <button
+                      type="button"
+                      onClick={handleParseRecipe}
+                      disabled={pasteParsing || !pasteText.trim()}
+                      className="btn btn--honey"
+                      style={{ gap: "0.5rem" }}
+                    >
+                      {pasteParsing
+                        ? <><Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} /> Extracting ingredients…</>
+                        : <><Sparkles style={{ width: "1rem", height: "1rem" }} /> Extract ingredients</>
+                      }
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <p style={{ fontWeight: 700, fontSize: "0.875rem", color: "var(--color-fg)" }}>
+                        {pasteIngredients.length} ingredient{pasteIngredients.length !== 1 ? "s" : ""} found
+                      </p>
+                      <div style={{ display: "flex", gap: "0.75rem" }}>
+                        <button
+                          type="button"
+                          onClick={() => setPasteSelected(
+                            pasteSelected.size === pasteIngredients.length
+                              ? new Set()
+                              : new Set(pasteIngredients.map((_, i) => i))
+                          )}
+                          style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--honey-700)", background: "none", border: "none", cursor: "pointer" }}
+                        >
+                          {pasteSelected.size === pasteIngredients.length ? "Deselect all" : "Select all"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setPasteIngredients(null); setPasteText(""); }}
+                          style={{ fontSize: "0.75rem", color: "var(--color-muted)", background: "none", border: "none", cursor: "pointer" }}
+                        >
+                          ← Back
+                        </button>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem", maxHeight: "16rem", overflowY: "auto" }}>
+                      {pasteIngredients.map((ing, i) => (
+                        <label
+                          key={i}
+                          style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.5rem 0.625rem", borderRadius: "0.625rem", cursor: "pointer", border: "1px solid", borderColor: pasteSelected.has(i) ? "var(--honey-300)" : "var(--cream-200)", background: pasteSelected.has(i) ? "var(--honey-50)" : "white" }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={pasteSelected.has(i)}
+                            onChange={() => {
+                              const next = new Set(pasteSelected);
+                              next.has(i) ? next.delete(i) : next.add(i);
+                              setPasteSelected(next);
+                            }}
+                            style={{ accentColor: "var(--honey-500)", width: "1rem", height: "1rem", flexShrink: 0 }}
+                          />
+                          <span style={{ flex: 1, fontSize: "0.875rem", fontWeight: 500 }}>{ing.item}</span>
+                          <span style={{ fontSize: "0.75rem", color: "var(--color-muted)" }}>{ing.amount}</span>
+                          <span style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--honey-700)" }}>${ing.estimatedPrice.toFixed(2)}</span>
+                        </label>
+                      ))}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleAddPasteIngredients}
+                      disabled={pasteSelected.size === 0 || pasteAdding}
+                      className="btn btn--honey"
+                      style={{ gap: "0.5rem" }}
+                    >
+                      {pasteAdding
+                        ? <Loader2 style={{ width: "1rem", height: "1rem", animation: "spin 1s linear infinite" }} />
+                        : <Plus style={{ width: "1rem", height: "1rem" }} />
+                      }
+                      Add {pasteSelected.size} ingredient{pasteSelected.size !== 1 ? "s" : ""} to list
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Shopping list */}
         <div className="card animate-fade-up delay-150">
