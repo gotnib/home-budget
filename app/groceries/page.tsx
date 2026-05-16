@@ -62,8 +62,24 @@ function Counter({ value, onChange, min = 0, max = 10 }: { value: number; onChan
   );
 }
 
-function MealWeekCard({ week, onMealClick }: { week: MealWeek; onMealClick?: (meal: string) => void }) {
+function MealWeekCard({ week, onMealClick, onDayRetry }: {
+  week: MealWeek;
+  onMealClick?: (meal: string) => void;
+  onDayRetry?: (weekNum: number, dayName: string) => Promise<void>;
+}) {
   const [open, setOpen] = useState(false);
+  const [retryingDay, setRetryingDay] = useState<string | null>(null);
+
+  async function handleRetry(dayName: string) {
+    if (!onDayRetry || retryingDay) return;
+    setRetryingDay(dayName);
+    try {
+      await onDayRetry(week.week, dayName);
+    } finally {
+      setRetryingDay(null);
+    }
+  }
+
   return (
     <div style={{ border: "1px solid var(--cream-200)", borderRadius: "0.875rem", overflow: "hidden" }}>
       <button
@@ -81,8 +97,25 @@ function MealWeekCard({ week, onMealClick }: { week: MealWeek; onMealClick?: (me
         <div>
           {week.days.map((day, i) => (
             <div key={day.day} style={{ padding: "0.625rem 1rem", borderTop: "1px solid var(--cream-200)", background: i % 2 === 0 ? "white" : "var(--honey-50)" }}>
-              <p style={{ fontWeight: 700, fontSize: "0.75rem", color: "var(--honey-700)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.375rem" }}>{day.day}</p>
-              <div style={{ display: "grid", gap: "0.25rem" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.375rem" }}>
+                <p style={{ fontWeight: 700, fontSize: "0.75rem", color: "var(--honey-700)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{day.day}</p>
+                {onDayRetry && (
+                  <button
+                    type="button"
+                    onClick={() => handleRetry(day.day)}
+                    disabled={retryingDay !== null}
+                    title={`Regenerate ${day.day}`}
+                    style={{ display: "flex", alignItems: "center", gap: "0.25rem", fontSize: "0.6875rem", fontWeight: 600, color: retryingDay === day.day ? "var(--honey-600)" : "var(--color-muted)", background: "none", border: "none", cursor: retryingDay ? "default" : "pointer", padding: "0.125rem 0.25rem", borderRadius: "0.375rem", transition: "color 0.15s" }}
+                  >
+                    {retryingDay === day.day
+                      ? <Loader2 style={{ width: "0.75rem", height: "0.75rem", animation: "spin 1s linear infinite" }} />
+                      : <RotateCcw style={{ width: "0.75rem", height: "0.75rem" }} />
+                    }
+                    {retryingDay === day.day ? "Retrying…" : "Retry day"}
+                  </button>
+                )}
+              </div>
+              <div style={{ display: "grid", gap: "0.25rem", opacity: retryingDay === day.day ? 0.4 : 1, transition: "opacity 0.2s" }}>
                 {([["🌅", day.breakfast], ["☀️", day.lunch], ["🌙", day.dinner]] as [string, string][]).map(([emoji, meal]) => (
                   <div key={emoji} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <p style={{ fontSize: "0.8125rem", color: "var(--color-fg)" }}>
@@ -287,6 +320,41 @@ export default function GroceriesPage() {
       setAiError(err instanceof Error ? err.message : "Something went wrong");
       setAiStep("configure");
     }
+  }
+
+  async function handleDayRetry(weekNum: number, dayName: string) {
+    if (!mealPlan) return;
+    // Collect all current meals so Claude avoids repeating them
+    const existingMeals = mealPlan.weeks.flatMap((w) =>
+      w.days.flatMap((d) => [d.breakfast, d.lunch, d.dinner])
+    );
+    const res = await fetch("/api/groceries/meal-plan/retry-day", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        dayName,
+        adults: mealPlan.adults,
+        kids: mealPlan.kids,
+        store: mealPlan.store,
+        budget: mealPlan.budget,
+        existingMeals,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? "Failed to regenerate day");
+    // Patch just that day in the mealPlan state
+    setMealPlan((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        weeks: prev.weeks.map((w) =>
+          w.week !== weekNum ? w : {
+            ...w,
+            days: w.days.map((d) => d.day === dayName ? data.day : d),
+          }
+        ),
+      };
+    });
   }
 
   async function handleBuildGroceryList() {
@@ -761,7 +829,7 @@ export default function GroceriesPage() {
 
               <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                 {mealPlan.weeks.map((week) => (
-                  <MealWeekCard key={week.week} week={week} onMealClick={handleMealClick} />
+                  <MealWeekCard key={week.week} week={week} onMealClick={handleMealClick} onDayRetry={handleDayRetry} />
                 ))}
               </div>
 
