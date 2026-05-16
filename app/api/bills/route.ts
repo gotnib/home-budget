@@ -91,7 +91,7 @@ export async function PATCH(request: NextRequest) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await request.json();
-    const { id, name, amount, dueDay, cadence } = body;
+    const { id, name, amount, dueDay, cadence, paid } = body;
 
     if (!id) return NextResponse.json({ error: "ID is required" }, { status: 400 });
 
@@ -102,6 +102,7 @@ export async function PATCH(request: NextRequest) {
     if (name !== undefined) updates.name = name;
     if (amount !== undefined) updates.amount = Number(amount);
     if (dueDay !== undefined) updates.dueDay = dueDay === null || dueDay === "" ? null : Number(dueDay);
+    if (paid !== undefined) updates.paidAt = paid ? new Date() : null;
     if (cadence !== undefined) {
       const validCadences = ["weekly", "biweekly", "monthly", "annually"];
       if (!validCadences.includes(cadence)) {
@@ -110,7 +111,7 @@ export async function PATCH(request: NextRequest) {
       updates.cadence = cadence;
     }
 
-    const bill = await prisma.bill.update({ where: { id }, data: updates });
+    const bill = await prisma.bill.update({ where: { id, userId: user.id }, data: updates });
     return NextResponse.json({ bill });
   } catch (error) {
     console.error("Update bill error:", error);
@@ -140,7 +141,7 @@ export async function DELETE(request: NextRequest) {
     if (!existing)
       return NextResponse.json({ error: "Bill not found" }, { status: 404 });
 
-    await prisma.bill.delete({ where: { id } });
+    await prisma.bill.delete({ where: { id, userId: user.id } });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Delete bill error:", error);

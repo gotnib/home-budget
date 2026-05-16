@@ -45,6 +45,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const amountNum = Number(amount);
+    if (!isFinite(amountNum) || amountNum <= 0 || amountNum > 10_000_000) {
+      return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
+    }
+
+    if (typeof name !== "string" || name.trim().length === 0 || name.length > 100) {
+      return NextResponse.json({ error: "Invalid name" }, { status: 400 });
+    }
+
     const validCadences = ["weekly", "biweekly", "monthly", "annually"];
     if (!validCadences.includes(cadence)) {
       return NextResponse.json(
@@ -56,8 +65,8 @@ export async function POST(request: NextRequest) {
     const income = await prisma.income.create({
       data: {
         userId: user.id,
-        name,
-        amount: Number(amount),
+        name: name.trim(),
+        amount: amountNum,
         cadence,
         source: "manual",
       },

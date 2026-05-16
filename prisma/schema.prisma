@@ -9,15 +9,21 @@ datasource db {
 }
 
 model UserProfile {
-  id        String   @id
-  email     String   @unique
-  createdAt DateTime @default(now())
+  id            String   @id
+  email         String   @unique
+  createdAt     DateTime @default(now())
+  householdId   String?
+  householdRole String?  // "worker" | "hive" (null = queen/solo)
 
-  plaidItems     PlaidItem[]
-  incomes        Income[]
-  bills          Bill[]
-  groceries      GroceryItem[]
-  budgetSettings BudgetSettings?
+  plaidItems      PlaidItem[]
+  incomes         Income[]
+  bills           Bill[]
+  groceries       GroceryItem[]
+  budgetSettings  BudgetSettings?
+  incomeEntries   IncomeEntry[]
+  splitExpenses   SplitExpense[]
+  ownedHousehold  Household?
+  household       Household?      @relation("HouseholdMembers", fields: [householdId], references: [id], onDelete: SetNull)
 }
 
 model PlaidItem {
@@ -58,14 +64,15 @@ model Income {
 }
 
 model Bill {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
   name      String
   amount    Float
   dueDay    Int?
   cadence   String
   source    String
-  createdAt DateTime @default(now())
+  paidAt    DateTime?
+  createdAt DateTime  @default(now())
 
   user UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -84,11 +91,59 @@ model GroceryItem {
 }
 
 model BudgetSettings {
-  id             String   @id @default(cuid())
-  userId         String   @unique
-  groceryPercent Float    @default(25)
-  savingsGoal    Float    @default(0)
-  updatedAt      DateTime @updatedAt
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  groceryPercent          Float    @default(25)
+  savingsGoal             Float    @default(0)
+  grocerySpentAccumulated Float    @default(0)
+  displayName      String?
+  payPeriod        String   @default("biweekly")
+  householdAdults  Int      @default(2)
+  householdKids    Int      @default(0)
+  preferredStore   String   @default("")
+  savedMealPlan    Json?
+  savedLists       Json?
+  frequentItems    Json?
+  shareToken       String?  @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Household {
+  id          String   @id @default(cuid())
+  ownerId     String   @unique
+  workerCode  String?  @unique
+  hiveCode    String?  @unique
+  createdAt   DateTime @default(now())
+
+  owner   UserProfile   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  members UserProfile[] @relation("HouseholdMembers")
+}
+
+model IncomeEntry {
+  id         String   @id @default(cuid())
+  userId     String
+  sourceName String
+  amount     Float
+  receivedAt DateTime
+  note       String?
+  createdAt  DateTime @default(now())
+
+  user UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SplitExpense {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  total     Float
+  yourShare Float
+  paidBy    String   @default("me")
+  people    Json     @default("[]")
+  settled   Boolean  @default(false)
+  createdAt DateTime @default(now())
 
   user UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

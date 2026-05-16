@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LayoutDashboard, DollarSign, Receipt, ShoppingCart, Settings, LogOut, Wallet } from "lucide-react";
@@ -13,6 +14,12 @@ const navLinks = [
   { href: "/settings",  label: "Settings",  icon: Settings },
 ];
 
+const ROLE_META: Record<string, { label: string; emoji: string; color: string; bg: string }> = {
+  queen:  { label: "Queen",  emoji: "👑", color: "var(--honey-800)",    bg: "var(--honey-100)"    },
+  worker: { label: "Worker", emoji: "🐝", color: "var(--sage-800)",     bg: "var(--sage-100)"     },
+  hive:   { label: "Hive",   emoji: "🍯", color: "var(--lavender-800)", bg: "var(--lavender-100)" },
+};
+
 interface NavbarProps {
   userEmail?: string | null;
 }
@@ -21,6 +28,50 @@ export function Navbar({ userEmail }: NavbarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    function applyName(name: string) {
+      try {
+        document.title = name;
+        localStorage.setItem("honey-display-name", name);
+        const meta = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+        if (meta) meta.setAttribute("content", name);
+        else {
+          const m = document.createElement("meta");
+          m.setAttribute("name", "apple-mobile-web-app-title");
+          m.setAttribute("content", name);
+          document.head.appendChild(m);
+        }
+      } catch { /* ignore */ }
+    }
+
+    try {
+      const cached = localStorage.getItem("honey-display-name");
+      if (cached) { applyName(cached); return; }
+    } catch { /* ignore */ }
+
+    fetch("/api/user-settings")
+      .then((r) => r.ok ? r.json() : null)
+      .then((s) => { if (s?.displayName) applyName(s.displayName); })
+      .catch(() => { /* ignore */ });
+
+    const handler = () => {
+      try {
+        const name = localStorage.getItem("honey-display-name");
+        if (name) applyName(name);
+      } catch { /* ignore */ }
+    };
+    window.addEventListener("honey-name-changed", handler);
+    return () => window.removeEventListener("honey-name-changed", handler);
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/household")
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d?.role) setUserRole(d.role); })
+      .catch(() => { /* ignore */ });
+  }, []);
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -31,6 +82,8 @@ export function Navbar({ userEmail }: NavbarProps) {
   function isActive(href: string) {
     return pathname === href || pathname.startsWith(href + "/");
   }
+
+  const roleMeta = userRole ? ROLE_META[userRole] : null;
 
   return (
     <>
@@ -61,6 +114,11 @@ export function Navbar({ userEmail }: NavbarProps) {
           </nav>
 
           <div className="navbar-right">
+            {roleMeta && (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem", padding: "0.25rem 0.625rem", borderRadius: "9999px", background: roleMeta.bg, color: roleMeta.color, fontSize: "0.75rem", fontWeight: 700 }}>
+                {roleMeta.emoji} {roleMeta.label}
+              </span>
+            )}
             {userEmail && <span className="navbar-email">{userEmail}</span>}
             <button onClick={handleSignOut} className="btn-sign-out">
               <LogOut style={{ width: "1rem", height: "1rem" }} />
@@ -78,9 +136,16 @@ export function Navbar({ userEmail }: NavbarProps) {
           </span>
           <span className="navbar-mobile-name">HoneyCart</span>
         </Link>
-        <button onClick={handleSignOut} className="btn-mobile-signout" aria-label="Sign out">
-          <LogOut style={{ width: "1rem", height: "1rem" }} />
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          {roleMeta && (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", padding: "0.2rem 0.5rem", borderRadius: "9999px", background: roleMeta.bg, color: roleMeta.color, fontSize: "0.6875rem", fontWeight: 700 }}>
+              {roleMeta.emoji} {roleMeta.label}
+            </span>
+          )}
+          <button onClick={handleSignOut} className="btn-mobile-signout" aria-label="Sign out">
+            <LogOut style={{ width: "1rem", height: "1rem" }} />
+          </button>
+        </div>
       </header>
 
       {/* Mobile bottom tab bar */}
@@ -98,7 +163,6 @@ export function Navbar({ userEmail }: NavbarProps) {
         })}
       </nav>
 
-      <div className="tab-bar-spacer" />
     </>
   );
 }

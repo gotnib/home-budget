@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { walmartAdapter } from "@/lib/walmart-adapter";
+import { getHouseholdContext, canWrite } from "@/lib/household";
 
 export async function GET() {
   try {
@@ -12,8 +13,11 @@ export async function GET() {
     if (!user)
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+    const { ownerId, role } = await getHouseholdContext(user.id);
+    if (!canWrite(role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
     const plannedItems = await prisma.groceryItem.findMany({
-      where: { userId: user.id, status: "planned" },
+      where: { userId: ownerId, status: "planned" },
       orderBy: { createdAt: "asc" },
     });
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, CheckCircle2, Eye, EyeOff, Heart, Home, Loader2, ShieldCheck, ShoppingCart, Sparkles, Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -29,6 +29,7 @@ export default function LandingPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const redirectingRef = useRef(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -37,23 +38,46 @@ export default function LandingPage() {
       if (mode === "signin") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        redirectingRef.current = true;
         router.push("/dashboard"); router.refresh();
       } else {
-        const { error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-        setSuccess("Check your email to confirm your account!");
-        setEmail(""); setPassword("");
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email, password });
+        if (signUpError) throw signUpError;
+        if (signUpData.session) {
+          redirectingRef.current = true;
+          router.push("/dashboard"); router.refresh();
+        } else {
+          setSuccess("Account created! Check your email to confirm, then sign in.");
+          setEmail(""); setPassword("");
+        }
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
-      setIsLoading(false);
+      if (!redirectingRef.current) setIsLoading(false);
     }
   }
 
   function switchMode(next: Mode) { setMode(next); setError(null); setSuccess(null); }
 
+  const showOverlay = isLoading && redirectingRef.current;
+
   return (
+    <>
+    {showOverlay && (
+      <div className="signin-overlay" aria-live="assertive" aria-label="Signing in">
+        <div className="signin-overlay-blob1" aria-hidden />
+        <div className="signin-overlay-blob2" aria-hidden />
+        <div className="signin-overlay-icon" aria-hidden>
+          <Wallet style={{ width: "2rem", height: "2rem" }} strokeWidth={2.1} />
+        </div>
+        <div className="signin-overlay-spinner" aria-hidden />
+        <div style={{ textAlign: "center" }}>
+          <p className="signin-overlay-title">Signing you in…</p>
+          <p className="signin-overlay-sub">Getting your HoneyCart ready</p>
+        </div>
+      </div>
+    )}
     <main className="landing-wrap">
       <section className="landing-section">
         <div className="landing-grid">
@@ -232,5 +256,6 @@ export default function LandingPage() {
         </div>
       </section>
     </main>
+    </>
   );
 }

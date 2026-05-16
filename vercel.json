@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/reset-grocery-spend",
+      "schedule": "0 0 1 * *"
+    }
+  ]
+}

@@ -166,7 +166,7 @@ img { max-width: 100%; height: auto; }
 .page-container {
   max-width: 80rem;
   margin: 0 auto;
-  padding: 1rem 0.875rem;
+  padding: 0.75rem 0.875rem;
   display: flex;
   flex-direction: column;
   gap: 0.875rem;
@@ -174,7 +174,7 @@ img { max-width: 100%; height: auto; }
 .page-container--md {
   max-width: 48rem;
   margin: 0 auto;
-  padding: 1rem 0.875rem;
+  padding: 0.75rem 0.875rem;
   display: flex;
   flex-direction: column;
   gap: 0.875rem;
@@ -182,7 +182,7 @@ img { max-width: 100%; height: auto; }
 .page-container--sm {
   max-width: 42rem;
   margin: 0 auto;
-  padding: 1rem 0.875rem;
+  padding: 0.75rem 0.875rem;
   display: flex;
   flex-direction: column;
   gap: 0.875rem;
@@ -456,11 +456,6 @@ img { max-width: 100%; height: auto; }
 }
 .tab-item.active .tab-item-icon { transform: scale(1.1); }
 
-.tab-bar-spacer {
-  display: block;
-  height: calc(68px + env(safe-area-inset-bottom));
-}
-@media (min-width: 768px) { .tab-bar-spacer { display: none; } }
 
 /* ── Cards ── */
 .card {
@@ -2134,6 +2129,147 @@ img { max-width: 100%; height: auto; }
   flex: 1;
   background: var(--honey-400);
   transition: transform 0.7s cubic-bezier(0.16,1,0.3,1);
+}
+
+/* ── Sign-in overlay ── */
+.signin-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  background: linear-gradient(160deg, var(--honey-50) 0%, var(--cream-100) 60%, #fff 100%);
+  animation: fadeIn 0.25s ease;
+}
+.signin-overlay-blob1 {
+  position: absolute;
+  top: -5rem;
+  left: -5rem;
+  width: 28rem;
+  height: 28rem;
+  background: radial-gradient(circle, var(--honey-200) 0%, transparent 70%);
+  opacity: 0.5;
+  pointer-events: none;
+}
+.signin-overlay-blob2 {
+  position: absolute;
+  bottom: -4rem;
+  right: -4rem;
+  width: 24rem;
+  height: 24rem;
+  background: radial-gradient(circle, var(--sage-200) 0%, transparent 70%);
+  opacity: 0.4;
+  pointer-events: none;
+}
+.signin-overlay-icon {
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: 1.25rem;
+  background: var(--honey-400);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  animation: overlayIconPop 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+.signin-overlay-spinner {
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 3px solid var(--honey-200);
+  border-top-color: var(--honey-500);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+.signin-overlay-title {
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: var(--honey-900);
+  letter-spacing: -0.02em;
+}
+.signin-overlay-sub {
+  font-size: 0.9rem;
+  color: var(--color-muted);
+  margin-top: 0.25rem;
+}
+@keyframes overlayIconPop {
+  from { opacity: 0; transform: scale(0.7); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Recipe Modal ── */
+.recipe-modal {
+  max-width: 520px;
+}
+.recipe-meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: var(--honey-50);
+  border: 1px solid var(--honey-200);
+  color: var(--honey-800);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 0.3125rem 0.625rem;
+  border-radius: 999px;
+}
+.recipe-ingredient-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.625rem;
+  padding: 0.375rem 0;
+  border-bottom: 1px solid var(--cream-100);
+}
+.recipe-ingredient-amount {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--honey-700);
+  min-width: 4rem;
+  flex-shrink: 0;
+}
+.recipe-step-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+.recipe-step-num {
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--honey-100);
+  color: var(--honey-800);
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.meal-recipe-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.625rem;
+  height: 1.625rem;
+  border-radius: 0.4375rem;
+  border: 1px solid var(--cream-200);
+  background: white;
+  color: var(--color-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.meal-recipe-btn:hover {
+  background: var(--honey-50);
+  color: var(--honey-600);
+  border-color: var(--honey-200);
 }
 
 /* ── Reduced motion ── */
