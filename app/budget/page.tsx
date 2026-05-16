@@ -517,7 +517,10 @@ export default function BudgetPage() {
                     disabled={resettingSpend}
                     onClick={async () => {
                       setResettingSpend(true);
-                      await fetch("/api/budget/reset-grocery-spend", { method: "POST" });
+                      await Promise.all([
+                        fetch("/api/budget/reset-grocery-spend", { method: "POST" }),
+                        fetch("/api/groceries/cart/bulk", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "purchased" }) }),
+                      ]);
                       setGrocerySpend(0);
                       setResettingSpend(false);
                     }}
