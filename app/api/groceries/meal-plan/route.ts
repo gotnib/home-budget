@@ -57,12 +57,19 @@ export async function POST(request: NextRequest) {
           role: "user",
           content: `Create a ${totalDays}-day meal plan for a household of ${peopleDesc}.${budgetLine}${storeLine}${notes ? ` Additional notes: ${notes}` : ""}
 
-Requirements:
+VARIETY RULES (strictly enforced):
+- NO meal name may appear more than once across the entire plan
+- NO main protein (chicken, tuna, beef, pork, shrimp, eggs, etc.) more than twice per week
+- Breakfast must rotate through at least 4 different base styles (e.g. eggs, oatmeal, pancakes/waffles, yogurt/fruit, smoothie, avocado toast, french toast, breakfast burritos, muffins/pastries) — never eggs two days in a row
+- Lunch must vary daily — no sandwiches or wraps more than twice per week, and no two consecutive days of the same format
+- Dinner must include at least 3 different cuisine styles per week (e.g. Italian, Mexican, Asian, Mediterranean, American, Indian, Greek)
+- Across a 2-week plan: each dinner protein used in week 1 should not be the dominant protein in the same weekday slot of week 2
+
+GENERAL RULES:
 - Practical family-friendly meals scaled to the household size
-- Every meal must be freshly prepared — NEVER use "Leftovers", "Leftover [X]", or any variation as a meal. Plan the right portions so there are no designated leftover nights.
-- Variety across the plan (avoid repeating the same meal)
+- Every meal freshly prepared — NEVER use "Leftovers" or any variation
 - Mix of quick weekday meals and more involved weekend meals
-- Kid-friendly options when children are present${budget ? `\n- STRICT BUDGET: Design meals so the total grocery cost stays within $${budget}. Choose economical proteins, use pantry staples, and plan meals that share ingredients to reduce cost.` : ""}${store ? `\n- Prefer ingredients commonly available at ${store}` : ""}
+- Kid-friendly options when children are present${budget ? `\n- STRICT BUDGET: Stay within $${budget} total. Use economical proteins, pantry staples, and ingredient-sharing across meals.` : ""}${store ? `\n- Prefer ingredients commonly available at ${store}` : ""}
 
 Respond ONLY with a JSON array (no markdown, no explanation) covering exactly ${totalDays} days:
 [
