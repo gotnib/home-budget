@@ -265,6 +265,8 @@ export default function BudgetPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [grocerySpend, setGrocerySpend] = useState(0);
+  const [resettingSpend, setResettingSpend] = useState(false);
   const [groceryPercent, setGroceryPercent] = useState(25);
   const [savingsGoal, setSavingsGoal] = useState(0);
   const [savingsGoalInput, setSavingsGoalInput] = useState("0");
@@ -285,6 +287,7 @@ export default function BudgetPage() {
       const incJson      = incRes.ok ? await incRes.json() : {};
       if (!budgetRes.ok) throw new Error(budgetJson.error);
       setData(budgetJson);
+      setGrocerySpend(budgetJson.grocerySpend ?? 0);
       setGroceryPercent(budgetJson.groceryPercent);
       setSavingsGoal(budgetJson.savingsGoal);
       setSavingsGoalInput(String(budgetJson.savingsGoal));
@@ -506,14 +509,38 @@ export default function BudgetPage() {
             </div>
 
             <div style={{ borderRadius: "1rem", background: "linear-gradient(to right, var(--honey-50), var(--lavender-50))", padding: "1rem", boxShadow: "inset 0 0 0 1px var(--honey-200)" }}>
-              <p className="section-label" style={{ marginBottom: "0.25rem" }}>Your grocery budget</p>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <p className="section-label" style={{ marginBottom: "0.25rem" }}>Grocery budget</p>
+                {grocerySpend > 0 && (
+                  <button
+                    type="button"
+                    disabled={resettingSpend}
+                    onClick={async () => {
+                      setResettingSpend(true);
+                      await fetch("/api/budget/reset-grocery-spend", { method: "POST" });
+                      setGrocerySpend(0);
+                      setResettingSpend(false);
+                    }}
+                    style={{ fontSize: "0.6875rem", fontWeight: 600, color: "var(--color-muted)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                  >
+                    Reset spend
+                  </button>
+                )}
+              </div>
               <p style={{ fontSize: "2.25rem", fontWeight: 700, fontVariantNumeric: "tabular-nums", color: "var(--color-fg)" }}>{fmt(groceryBudget)}</p>
               <p style={{ marginTop: "0.25rem", fontSize: "0.75rem", color: "var(--color-muted)" }}>
                 {groceryPercent}% × {fmt(flexible)} flexible = {fmt(groceryBudget)}/mo
               </p>
-              <div className="progress-track" style={{ marginTop: "0.75rem" }}>
-                <div className="progress-fill" style={{ width: `${groceryPct}%`, background: "linear-gradient(to right, #f9cf6b, #c9b8e8)" }} />
-              </div>
+              {grocerySpend > 0 && (
+                <>
+                  <div className="progress-track" style={{ marginTop: "0.75rem" }}>
+                    <div className="progress-fill" style={{ width: `${Math.min(100, (grocerySpend / groceryBudget) * 100)}%`, background: grocerySpend > groceryBudget ? "var(--blush-400)" : "linear-gradient(to right, #f9cf6b, #c9b8e8)" }} />
+                  </div>
+                  <p style={{ marginTop: "0.5rem", fontSize: "0.8125rem", fontWeight: 600, color: grocerySpend > groceryBudget ? "var(--blush-700)" : "var(--sage-700)" }}>
+                    {fmt(grocerySpend)} spent{groceryBudget > 0 ? ` · ${fmt(Math.max(0, groceryBudget - grocerySpend))} remaining` : ""}
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </div>

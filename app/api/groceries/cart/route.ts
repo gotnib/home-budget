@@ -119,6 +119,16 @@ export async function DELETE(request: NextRequest) {
     const existing = await prisma.groceryItem.findFirst({ where: { id, userId: ownerId } });
     if (!existing) return NextResponse.json({ error: "Item not found" }, { status: 404 });
 
+    // If purchased, persist its value in the accumulated spend so it stays in the budget
+    if (existing.status === "purchased" && existing.estimatedPrice) {
+      const spend = existing.estimatedPrice * existing.quantity;
+      await prisma.budgetSettings.upsert({
+        where: { userId: ownerId },
+        update: { grocerySpentAccumulated: { increment: spend } },
+        create: { userId: ownerId, grocerySpentAccumulated: spend },
+      });
+    }
+
     await prisma.groceryItem.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error) {

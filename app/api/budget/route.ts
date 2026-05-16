@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { normalizeToMonthly, calculateGroceryBudget } from "@/lib/budget";
+import { getHouseholdContext } from "@/lib/household";
 
 export async function GET() {
   try {
@@ -12,10 +13,13 @@ export async function GET() {
     if (!user)
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const [incomes, bills, budgetSettings] = await Promise.all([
-      prisma.income.findMany({ where: { userId: user.id } }),
-      prisma.bill.findMany({ where: { userId: user.id } }),
-      prisma.budgetSettings.findUnique({ where: { userId: user.id } }),
+    const { ownerId } = await getHouseholdContext(user.id);
+
+    const [incomes, bills, budgetSettings, purchasedItems] = await Promise.all([
+      prisma.income.findMany({ where: { userId: ownerId } }),
+      prisma.bill.findMany({ where: { userId: ownerId } }),
+      prisma.budgetSettings.findUnique({ where: { userId: ownerId } }),
+      prisma.groceryItem.findMany({ where: { userId: ownerId, status: "purchased" }, select: { estimatedPrice: true, quantity: true } }),
     ]);
 
     const monthlyIncome = incomes.reduce(
@@ -30,6 +34,9 @@ export async function GET() {
 
     const groceryPercent = budgetSettings?.groceryPercent ?? 25;
     const savingsGoal = budgetSettings?.savingsGoal ?? 0;
+    const accumulated = budgetSettings?.grocerySpentAccumulated ?? 0;
+    const currentSpend = purchasedItems.reduce((s, i) => s + (i.estimatedPrice ?? 0) * i.quantity, 0);
+    const grocerySpend = accumulated + currentSpend;
 
     const { flexibleBudget, groceryBudget } = calculateGroceryBudget({
       monthlyIncome,
@@ -45,6 +52,7 @@ export async function GET() {
       flexibleBudget,
       groceryBudget,
       groceryPercent,
+      grocerySpend,
     });
   } catch (error) {
     console.error("Budget GET error:", error);

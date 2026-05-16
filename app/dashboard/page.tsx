@@ -17,15 +17,15 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/");
 
-  const { role } = await getHouseholdContext(user.id);
+  const { role, ownerId } = await getHouseholdContext(user.id);
   if (role === "hive") redirect("/groceries");
 
   const [incomes, bills, groceryItems, plaidItems, budgetSettings] = await Promise.all([
-    prisma.income.findMany({ where: { userId: user.id } }),
-    prisma.bill.findMany({ where: { userId: user.id } }),
-    prisma.groceryItem.findMany({ where: { userId: user.id } }),
-    prisma.plaidItem.findMany({ where: { userId: user.id } }),
-    prisma.budgetSettings.findUnique({ where: { userId: user.id } }),
+    prisma.income.findMany({ where: { userId: ownerId } }),
+    prisma.bill.findMany({ where: { userId: ownerId } }),
+    prisma.groceryItem.findMany({ where: { userId: ownerId } }),
+    prisma.plaidItem.findMany({ where: { userId: ownerId } }),
+    prisma.budgetSettings.findUnique({ where: { userId: ownerId } }),
   ]);
 
   const monthlyIncome  = incomes.reduce((s, i) => s + normalizeToMonthly(i.amount, i.cadence), 0);
@@ -35,7 +35,9 @@ export default async function DashboardPage() {
   const { groceryBudget, flexibleBudget } = calculateGroceryBudget({ monthlyIncome, fixedBills, savingsGoal, groceryPercent });
   const safeToSpend    = Math.max(0, flexibleBudget - groceryBudget);
 
-  const grocerySpent    = groceryItems.filter((g) => g.status === "purchased").reduce((s, g) => s + (g.estimatedPrice ?? 0) * g.quantity, 0);
+  const accumulated     = budgetSettings?.grocerySpentAccumulated ?? 0;
+  const currentSpent    = groceryItems.filter((g) => g.status === "purchased").reduce((s, g) => s + (g.estimatedPrice ?? 0) * g.quantity, 0);
+  const grocerySpent    = accumulated + currentSpent;
   const groceryProgress = groceryBudget > 0 ? Math.min(100, (grocerySpent / groceryBudget) * 100) : 0;
   const fmt = (n: number) => "$" + n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 

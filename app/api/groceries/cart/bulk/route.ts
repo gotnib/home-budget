@@ -15,6 +15,22 @@ export async function DELETE(request: NextRequest) {
     const { status } = await request.json();
     if (!status) return NextResponse.json({ error: "status required" }, { status: 400 });
 
+    // Accumulate the spend of purchased items before deleting so it persists in the budget
+    if (status === "purchased") {
+      const items = await prisma.groceryItem.findMany({
+        where: { userId: ownerId, status: "purchased" },
+        select: { estimatedPrice: true, quantity: true },
+      });
+      const total = items.reduce((s, i) => s + (i.estimatedPrice ?? 0) * i.quantity, 0);
+      if (total > 0) {
+        await prisma.budgetSettings.upsert({
+          where: { userId: ownerId },
+          update: { grocerySpentAccumulated: { increment: total } },
+          create: { userId: ownerId, grocerySpentAccumulated: total },
+        });
+      }
+    }
+
     await prisma.groceryItem.deleteMany({ where: { userId: ownerId, status } });
     return NextResponse.json({ ok: true });
   } catch (error) {
