@@ -533,6 +533,15 @@ export default function GroceriesPage() {
     });
   }
 
+  async function handleClearPurchased() {
+    await fetch("/api/groceries/cart/bulk", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "purchased" }),
+    });
+    await fetchItems();
+  }
+
   async function handleReceipt(e: React.FormEvent) {
     e.preventDefault();
     const amount = parseFloat(receiptAmount);
@@ -621,7 +630,7 @@ export default function GroceriesPage() {
   }
 
   const planned   = items.filter((i) => i.status === "planned");
-  const purchased = items.filter((i) => i.status === "purchased");
+  const purchased = items.filter((i) => i.status === "purchased").sort((a, b) => a.name.localeCompare(b.name));
   const totalPlanned   = planned.reduce((s, i) => s + (i.estimatedPrice ?? 0) * i.quantity, 0);
   const totalPurchased = purchased.reduce((s, i) => s + (i.estimatedPrice ?? 0) * i.quantity, 0);
   const remaining = budget > 0 ? Math.max(0, budget - totalPurchased) : null;
@@ -1381,7 +1390,7 @@ export default function GroceriesPage() {
                   <h3 className="card-title" style={{ color: "var(--color-muted)" }}>Purchased / logged</h3>
                   <span className="badge badge--sage">{purchased.length}</span>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                   <span style={{ fontSize: "0.8125rem", fontWeight: 700, color: "var(--sage-700)" }}>${totalPurchased.toFixed(2)}</span>
                   {showPurchased
                     ? <ChevronUp style={{ width: "1rem", height: "1rem", color: "var(--color-muted)" }} />
@@ -1390,6 +1399,15 @@ export default function GroceriesPage() {
               </button>
               {showPurchased && (
                 <div className="card-body">
+                  <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "0.5rem" }}>
+                    <button
+                      type="button"
+                      onClick={handleClearPurchased}
+                      style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--blush-700)", background: "none", border: "none", cursor: "pointer", padding: "0.25rem 0" }}
+                    >
+                      Clear all
+                    </button>
+                  </div>
                   <div style={{ display: "flex", flexDirection: "column" }}>
                   {purchased.map((item, idx) => (
                     <div
