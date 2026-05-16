@@ -59,25 +59,41 @@ export async function POST(request: NextRequest) {
 
     const response = await anthropic.messages.create({
       model: "claude-opus-4-7",
-      max_tokens: 2000,
+      max_tokens: 3000,
       messages: [
         {
           role: "user",
-          content: `Generate a consolidated grocery shopping list for ${peopleDesc} based on this ${mealPlan.totalDays}-day meal plan. ${budgetLine} ${storeLine}
+          content: `You are building a grocery list for ${peopleDesc} based on a ${mealPlan.totalDays}-day meal plan. ${budgetLine} ${storeLine}
 
 Meal plan:
 ${mealsText}
 
-Rules:
-- Consolidate ingredients across all meals (e.g. one "Pasta 1lb" not separate entries per meal)
-- Include essential staples and pantry items needed (oils, spices, condiments, basics)
-- Scale quantities to the household size (${peopleDesc})
-- 20-35 items total${budgetRule}
+STEP 1 — For every meal listed above, mentally recall the full recipe: every ingredient, every sauce, every spice, every grain, every produce item, every protein, every dairy item. Treat each meal as if you are writing out the actual recipe.
+
+STEP 2 — Consolidate all ingredients across all meals into a single shopping list.
+
+WHAT TO INCLUDE (default: include everything unless explicitly listed below as a skip):
+- All fresh produce, meats, seafood, and dairy called for in the recipes
+- Grains, pasta, rice, bread, tortillas, noodles
+- Canned goods: diced tomatoes, beans, broth/stock, coconut milk, tomato paste, sauces
+- Specific oils needed (sesame oil, coconut oil, olive oil — include if any recipe calls for it)
+- ALL spices and seasonings that a recipe specifically calls for (cumin, paprika, turmeric, oregano, thyme, chili powder, garlic powder, onion powder, soy sauce, fish sauce, Worcestershire, hot sauce, etc.)
+- Condiments and sauces specific to recipes (salsa, hoisin, oyster sauce, tahini, etc.)
+- Baking ingredients for any baked item in the plan
+- Fresh aromatics: garlic, onions, ginger, shallots, fresh herbs
+- Eggs, butter, cheese if any recipe calls for them
+
+WHAT TO SKIP (only these truly universal items most households already have):
+- Table salt and plain black pepper
+- Plain water
+- Cooking spray (only skip if a neutral oil is already on the list)
+
+Scale all quantities for ${peopleDesc} across the full ${mealPlan.totalDays} days. Consolidate duplicates (e.g. if 5 meals use garlic, one "Garlic (bulb)" entry covers all of them).${budgetRule}
 
 Respond ONLY with a JSON array (no markdown, no explanation):
 [{"name": "string", "quantity": number, "estimatedPrice": number}]
 
-- name: clear item with size/weight where helpful (e.g. "Ground Beef 2lb", "Whole Milk 1gal")
+- name: clear item with size/weight where helpful (e.g. "Ground Beef 2lb", "Whole Milk 1gal", "Crushed Red Pepper Flakes")
 - quantity: number of units to buy
 - estimatedPrice: price per unit in USD (realistic for ${mealPlan.store || "a US grocery store"})`,
         },
