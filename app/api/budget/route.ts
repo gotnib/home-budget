@@ -18,7 +18,7 @@ export async function GET() {
     const [incomes, bills, budgetSettings, purchasedItems] = await Promise.all([
       prisma.income.findMany({ where: { userId: ownerId } }),
       prisma.bill.findMany({ where: { userId: ownerId } }),
-      prisma.budgetSettings.findUnique({ where: { userId: ownerId } }),
+      prisma.budgetSettings.findUnique({ where: { userId: ownerId } }).catch(() => null),
       prisma.groceryItem.findMany({ where: { userId: ownerId, status: "purchased" }, select: { estimatedPrice: true, quantity: true } }),
     ]);
 

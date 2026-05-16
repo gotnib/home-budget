@@ -25,7 +25,7 @@ export default async function DashboardPage() {
     prisma.bill.findMany({ where: { userId: ownerId } }),
     prisma.groceryItem.findMany({ where: { userId: ownerId } }),
     prisma.plaidItem.findMany({ where: { userId: ownerId } }),
-    prisma.budgetSettings.findUnique({ where: { userId: ownerId } }),
+    prisma.budgetSettings.findUnique({ where: { userId: ownerId } }).catch(() => null),
   ]);
 
   const monthlyIncome  = incomes.reduce((s, i) => s + normalizeToMonthly(i.amount, i.cadence), 0);
